@@ -28,7 +28,8 @@
 set -euo pipefail
 
 SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-TPL="$SRC/_context"
+PKG="$SRC/template"            # conteúdo instalado na pasta do arquivo pessoal
+TPL="$PKG/_context"            # molde do contexto (<ctx>/)
 STAMP=".archive-version"
 
 target=""
@@ -98,12 +99,12 @@ version() { git -C "$SRC" rev-parse --short HEAD 2>/dev/null || echo "sem-git-$(
 # ---------------------------------------------------------------------------
 # --update: reaplica só os arquivos do template que você NÃO editou
 # ---------------------------------------------------------------------------
-managed_files() {  # caminhos do template, SEMPRE prefixados com _context/ ou common/
+managed_files() {  # caminhos relativos à instalação (o que o --update gerencia)
+  [ -d "$PKG" ] && (cd "$PKG" && find . -type f -not -name "$STAMP" \
+    -not -path './_context/*' -not -path './common/*' \
+    | sed 's|^\./||')
   [ -d "$TPL" ] && (cd "$TPL" && find . -type f -not -name "$STAMP" | sed 's|^\./||; s|^|_context/|')
-  for f in README.md UPDATE.md .gitignore init.sh; do
-    [ -f "$SRC/$f" ] && echo "$f"
-  done
-  (cd "$SRC/common" && find . -type f | sed 's|^\./||; s|^|common/|')
+  (cd "$PKG/common" && find . -type f | sed 's|^\./||; s|^|common/|')
 }
 
 if [ "$mode" = update ]; then
@@ -151,7 +152,7 @@ if [ "$mode" = update ]; then
 
   changed=0; skipped=0; added=0; denied=0
   while IFS= read -r rel; do
-    src="$SRC/$rel"
+    src="$PKG/$rel"
     [ -f "$src" ] || continue
     # arquivos do molde vivem dentro do contexto (renomeado na instalação)
     case "$rel" in
@@ -243,20 +244,63 @@ case "$ok" in s|S|y|Y) ;; *) echo "cancelado."; exit 0 ;; esac
 
 mkdir -p "$target"
 
-# 1) o template vai inteiro, DENTRO de <ctx>/; depois a pasta é renomeada.
-#    (cp -R "$TPL/." copiaria o conteúdo direto na raiz — o molde é um contexto.)
+# 1) o conteúdo do template vai inteiro para a instalação; o molde vira <ctx>/
 mkdir -p "$target/$ctx"
 cp -R "$TPL/." "$target/$ctx/"
-rm -f "$target/backup/engram/exemplo/.gitkeep"
-rmdir "$target/backup/engram/exemplo" 2>/dev/null || true
+rm -f "$target/$ctx/backup/engram/exemplo/.gitkeep"
+rmdir "$target/$ctx/backup/engram/exemplo" 2>/dev/null || true
 mkdir -p "$target/common"
-cp -R "$SRC/common/." "$target/common/"
-cp "$SRC/README.md" "$target/README.md"
-cp "$SRC/init.sh" "$target/init.sh"
-[ -f "$SRC/UPDATE.md" ] && cp "$SRC/UPDATE.md" "$target/UPDATE.md"
-[ -f "$SRC/.gitignore" ] && cp "$SRC/.gitignore" "$target/.gitignore"
+cp -R "$PKG/common/." "$target/common/"
+cp -R "$PKG/personal" "$target/personal"
+[ -f "$PKG/UPDATE.md" ] && cp "$PKG/UPDATE.md" "$target/UPDATE.md"
+[ -f "$PKG/.gitignore" ] && cp "$PKG/.gitignore" "$target/.gitignore"
+cp "$SRC/init.sh" "$target/init.sh"   # o mesmo instalador serve ao --update
 chmod +x "$target/init.sh" "$target/common/tools/"*.sh "$target/claude/bootstrap.sh" 2>/dev/null || true
 echo "$(version)" > "$target/$STAMP"
+
+# README da instalação (o README do template fica no template: fala sobre o template)
+cat > "$target/README.md" <<ARCHIVE_README
+# $archive_name
+
+Arquivo pessoal: documentação operacional, memória do Engram, skills e journal, organizado por **contexto**.
+
+```
+$archive_name/
+├── init.sh        # instalador / atualizador do template (UPDATE.md)
+├── common/        # skills e scripts de qualquer contexto
+├── $ctx/          # o seu contexto (docs, journal, claude, skills, tools, backup)
+└── personal/      # contexto de exemplo, vazio
+```
+
+## Contextos
+
+Cada pasta de primeiro nível com \`backup/engram/\` é um contexto (pasta \`_*\` é ignorada). Crie outro copiando \`$ctx/\` e trocando os dados, conforme o checklist do molde.
+
+## Uso diário
+
+| O quê | Comando |
+|---|---|
+| backup + commit da memória e do journal | \`common/tools/backup-daily.sh $ctx\` |
+| restaurar em máquina nova | \`common/tools/restore.sh $ctx\` |
+| instalar skills/settings/comandos na máquina | \`$ctx/claude/bootstrap.sh --all\` (ver \`$ctx/claude/README.md\`) |
+| gerar o doc de tasks de um projeto | skill \`/archive-project-init\` |
+| próxima task | skill \`/archive-project-next-task\` |
+| registro do dia | skill \`/archive-journalling\` |
+
+## Atualizar o template
+
+Ver [UPDATE.md](UPDATE.md):
+
+\`\`\`bash
+bash <(curl -fsSL <url-do-raw>/init.sh) --update --dir "\$PWD"
+\`\`\`
+
+## Próximos passos
+
+1. preencha \`$ctx/docs/README.md\`, \`$ctx/tools/projects.json\` e \`$ctx/claude/memory/AGENTS.md\`
+2. (opcional) preencha \`$ctx/journal/GUIA.md\` — ou apague a pasta se não usar journal
+3. resolva os placeholders que dependem de você: \`<PROJECT>\`, \`<REPO>\`, \`<SDD_REPO>\`
+ARCHIVE_README
 
 # 2) o molde virou <ctx>/ no passo 1 — nada a renomear
 # 3) README do contexto (o do molde vira molde; a instalação ganha um README raiz)
@@ -300,7 +344,7 @@ echo "== preenchendo placeholders =="
 count=0
 while IFS= read -r -d '' f; do
   case "$f" in
-    "$target/README.md"|"$target/UPDATE.md") continue ;;   # tabelas de placeholders vivem aqui
+    "$target/UPDATE.md") continue ;;   # tabela de placeholders do --update
     */backup/engram/*/*.json|*/backup/engram/*/.engram/*) continue ;;
   esac
   for pair in "${PLACEHOLDERS[@]}"; do
@@ -313,7 +357,6 @@ while IFS= read -r -d '' f; do
   count=$((count + 1))
 done < <(find "$target" -type f \( -name '*.md' -o -name '*.sh' -o -name '*.mjs' -o -name '*.json' -o -name '*.jsonc' \) -print0)
 echo "$count arquivo(s) preenchido(s)"
-sed -i.bak "1s|^# .*|# $archive_name|" "$target/README.md" && rm -f "$target/README.md.bak"
 
 # metadados: o --update usa isto para reconstruir os valores desta instalação
 cat > "$target/.archive-meta" <<META

@@ -1,6 +1,6 @@
 # _context — molde de um contexto
 
-Esta pasta **não é um contexto**: é o esqueleto que o [`init.sh`](../init.sh) copia para criar o seu (`<CTX>/`). O nome começa com `_` porque os scripts de `common/tools/` ignoram pastas `_*` ao descobrir contextos.
+Esta pasta **não é um contexto**: é o esqueleto que o [`init.sh`](../../init.sh) copia para criar o seu (`<CTX>/`). O nome começa com `_` porque os scripts de `common/tools/` ignoram pastas `_*` ao descobrir contextos.
 
 > **Nota:** se você rodar `restore.sh` antes de criar um contexto, ele não vai encontrar nada — crie o seu com `init.sh` primeiro.
 

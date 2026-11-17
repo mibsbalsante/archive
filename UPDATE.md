@@ -1,110 +1,101 @@
-# Atualizando uma instalação
+# Atualização do template
 
-Duas coisas diferentes podem ser "atualizadas", e elas nunca se misturam:
+O template (`github.com/<org>/archive`) é imutável: nenhum dado seu vive nele. Atualizar = aplicar os arquivos do template sobre a sua instalação, preservando o que você editou.
 
-| O quê | Onde vive | Como atualizar |
-|---|---|---|
-| **O template** (scripts, skills, molde de contexto) | repo de origem (`github.com/<org>/archive`) | `init.sh --update` |
-| **Os seus dados** (docs, journal, memória) | a sua instalação (`$ARCHIVE_DIR/<ctx>/`) | `git pull` no repo da sua instalação |
-
-## Regra de ouro
-
-O repositório de origem **nunca** guarda dados seus, e **nunca** é editado por você. Ele só é lido pelo `init.sh`. Por isso o `pull` do template é sempre um clone limpo — não existe merge.
-
-```
-   repo de origem (template)          a sua instalação
-   ─────────────────────────          ─────────────────
-   init.sh  common/  _context/   ──►  common/  <ctx>/  init.sh  .archive-version
-   (clone temporário)                 (seu git, seus commits)
-```
-
-## Opção 1 — atualizar direto da origem (recomendado)
+## Comando
 
 ```bash
-# de dentro da sua instalação
-git clone --depth 1 <url-do-template> /tmp/archive-template
-bash /tmp/archive-template/init.sh --update --dir "$PWD"
-rm -rf /tmp/archive-template
-```
-
-Ou, sem clonar nada:
-
-```bash
+# a partir da instalação
 bash <(curl -fsSL <url-do-raw>/init.sh) --update --dir "$PWD"
+
+# sem confirmação por arquivo (ainda gera backup)
+bash <(curl -fsSL <url-do-raw>/init.sh) --update --dir "$PWD" --yes
+
+# sobrescrever também o que você editou
+bash <(curl -fsSL <url-do-raw>/init.sh) --update --dir "$PWD" --force-update
 ```
 
-Sem `--dir`, o script pergunta. Ele **recusa** atualizar uma pasta que não tenha o arquivo `.archive-version`.
+`--dir` é obrigatório (ou perguntado). A pasta precisa ter `.archive-version`; sem ela, o script aborta.
 
-## Como o `--update` decide o que escrever
+## O que o `--update` percorre
 
-Para cada arquivo do template:
+Somente arquivos do template:
 
-| Situação | Ação | Saída |
-|---|---|---|
-| Não existe na sua instalação | cria | `+ arquivo` |
-| Existe e é idêntico | não faz nada | — |
-| Existe e difere (você editou) | grava `arquivo.new` ao lado | `! arquivo (conflito)` |
-| Existe e difere, com `--force-update` | sobrescreve | `~ arquivo (sobrescrito)` |
+```
+claude/  skills/README.md  docs/README.md  tools/README.md  backup/README.md
+common/  init.sh  README.md  UPDATE.md  .gitignore
+```
 
-Ao final, o script grava a nova versão em `.archive-version` e mostra a contagem de novos, atualizados e conflitos.
+Nunca percorre `<ctx>/docs`, `<ctx>/journal`, `<ctx>/backup`, `<ctx>/tools/projects.json`, `<ctx>/claude/memory/AGENTS.md` nem `<ctx>/skills`.
 
-Como ele sabe que você editou? Cada instalação guarda dois metadados, criados pelo `init.sh`:
+## Algoritmo
 
-| Arquivo | O que é |
+Para cada arquivo do template, renderizado com os valores da instalação (`.archive-meta`) e comparado ao disco:
+
+| Estado | Ação |
 |---|---|
-| `.archive-meta` | os valores da instalação (`CTX`, `GITHUB_ORG`, `LINEAR_TEAM`…) — usados para reaplicar as substituições nos arquivos do template |
-| `.archive-base/<arquivo>` | cópia de cada arquivo do template **como ficou na instalação** — é a base da comparação |
+| destino não existe | cria |
+| destino == render | nada |
+| destino == `.archive-base/<arquivo>` | sobrescreve (só o template mudou) |
+| destino != base, é config (`claude/`, `opencode/`) | exibe diff, pede `s/N` por arquivo, `cp` para `.old`, sobrescreve |
+| destino != base, não é config | grava `<arquivo>.new`, mantém o original |
+| `--force-update` | sobrescreve qualquer divergência |
 
-### Configs de agente pedem permissão arquivo a arquivo
+Configs pedem confirmação individual porque são editados à mão e instalam no HOME. Responder `n` mantém o arquivo e **não** gera `.old`.
 
-Os arquivos de `claude/` (settings, memória, comandos, config do OpenCode) são tratados à parte: qualquer mudança neles **mostra o diff, pergunta individualmente** e faz backup `<arquivo>.old` antes de escrever. Com `--yes`, aplica sem perguntar — mas **continua gerando o `.old`**. Responder "n" mantém o seu arquivo e não gera backup.
+## Metadados
 
-O `--update` renderiza o arquivo novo com os seus valores e compara com o disco: igual à base = só o template mudou (atualiza); diferente da base = você editou (vira `.new`).
+Dois artefatos por instalação, criados pelo `init.sh`:
 
-**Nada dentro de `<ctx>/` é tocado** — `docs/`, `journal/`, `backup/`, `tools/projects.json`, `claude/memory/AGENTS.md` e `skills/` são seus. O `--update` só percorre os arquivos do template: `common/`, `claude/`, `skills/README.md`, `docs/README.md` do molde, `init.sh`, `README.md`, `UPDATE.md`, `.gitignore` e os `.md` de exemplo.
+| Arquivo | Conteúdo |
+|---|---|
+| `.archive-version` | commit curto do template aplicado (ou `sem-git-<data>`) |
+| `.archive-meta` | `CTX`, `ARCHIVE_NAME`, `ARCHIVE_DIR`, `GITHUB_*`, `LINEAR_*`, `WORKSPACE_DIR` |
+| `.archive-base/<arquivo>` | cópia renderizada de cada arquivo do template como ficou após o install/update |
 
-Depois de atualizar:
+`.archive-base` é a linha de base do próximo diff. Sem ele, qualquer arquivo preenchido pelo install seria tratado como editado.
+
+> Se você versionar a instalação e quiser `--update` funcionando em outra máquina, versione `.archive-meta` e `.archive-base/`. Sem eles, todo config vira conflito no primeiro update.
+
+## Saída
+
+```
++ criado          ~ sobrescrito      ! conflito (.new)
+= mantido (você respondeu n)
+```
+
+## Resolver conflitos
 
 ```bash
-cd "$ARCHIVE_DIR"
-find . -name '*.new'            # os conflitos para revisar
-git diff                        # confira antes de commitar
+diff arquivo arquivo.new     # arquivo.new = versão do template, SEM os seus valores
+```
+
+- Mudança do template que você quer: `mv arquivo.new arquivo`.
+- Mudança irrelevante: `rm arquivo.new`.
+- Se o `.new` de um arquivo do template tiver `<CTX>`/`<GITHUB_ORG>` não substituídos, é esperado: o `--update` não reescreve valores nos conflitos.
+
+## Depois de atualizar
+
+```bash
+find . -name '*.new'
+git diff
 git add -A && git commit -m "chore: atualiza o template"
 ```
 
-## O que fazer com os conflitos
+## Mover a instalação
 
-Cada `arquivo.new` é a versão **nova do template**. Escolha:
-
-- **Editou de propósito** (ex.: regra sua em `claude/memory/AGENTS.md`): compare com `diff arquivo arquivo.new`, puxe só as mudanças do template e apague o `.new` — o `.new` **não** recebe as suas substituições (`<CTX>` etc.), porque o `--update` não reescreve nada que não venha do template.
-- **Não editou**: a diferença aparece só quando o template mudou. Veja `diff arquivo arquivo.new`; se a mudança não te interessa, mantenha o seu (`rm arquivo.new`).
-
-> Recomendação: a partir da primeira atualização, **pare de editar `common/`** e ponha as suas versões em `<ctx>/skills/` ou em scripts próprios — assim não há conflito.
->
-> Para inspecionar o que muda antes de aplicar: `git -C <clone-do-template> log --oneline -- common/ _context/`.
-
-## Opção 2 — reinstalar em outra pasta (zero risco)
-
-Se a instalação está muito divergente, e os seus dados vivem em `git`:
+`.archive-meta` guarda `ARCHIVE_DIR` absoluto. Ao mover:
 
 ```bash
-git clone <url-do-seu-repo-instalacao> /tmp/instalacao-nova
-bash <template>/init.sh --dir /tmp/instalacao-nova-2 ...
+# 1. mova a pasta
+# 2. ajuste o valor e os arquivos que usam caminho absoluto
+sed -i '' "s|/<caminho-antigo>|/<caminho-novo>|g" .archive-meta
+grep -rl "<caminho-antigo>" . | xargs sed -i '' "s|/<caminho-antigo>|/<caminho-novo>|g"
+# 3. ou exporte ENGRAM_ARCHIVE=<novo-path>, que tem precedência nos scripts
 ```
-
-Não há migração automática: o `--update` é o caminho para preservar os dados.
-
-## Mudou a pasta da instalação?
-
-O `init.sh` grava caminhos absolutos (`<ARCHIVE_DIR>`) em vários arquivos. Se você mover a instalação:
-
-```bash
-bash <template>/init.sh --update --dir "$NEW_PATH"   # não conserta caminhos absolutos
-grep -rl "<CAMINHO-ANTIGO>" "$NEW_PATH"              # ache quem ainda aponta para o lugar antigo
-```
-
-O caminho da instalação é resolvido pelos scripts a partir de `$ENGRAM_ARCHIVE` ou de `--repo`, com default `~/Work/<ARCHIVE_NAME>` — mover só exige ajustar esses defaults (ou exportar `ENGRAM_ARCHIVE`).
 
 ## Versionamento
 
-`.archive-version` guarda o commit curto do template usado na instalação (ou `sem-git-<data>` quando instalado via curl sem `.git`). O `--update` mostra `antiga → nova`. Não edite esse arquivo à mão.
+`.archive-version` guarda o commit curto do template. O `--update` imprime `antiga → nova`. Não edite o arquivo à mão.
+
+O valor sai de `git -C <template> rev-parse --short HEAD`; instalado via `curl` (sem `.git`), vira `sem-git-<AAAA-MM-DD>`.
