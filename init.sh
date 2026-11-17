@@ -1,0 +1,357 @@
+#!/usr/bin/env bash
+#
+# archive — instalador.
+#
+# Este repo é um TEMPLATE imutável: ele nunca guarda os seus dados. O script
+# cria a sua instalação (o "arquivo") em um diretório que você escolhe e omite
+# a si mesmo de lá. Depois de instalar, você trabalha na SUA pasta — este repo
+# pode ser apagado (ou usado só para atualizar).
+#
+# Uso:
+#   bash init.sh [--dir <onde salvar>] [outras flags]     # interativo
+#   bash <(curl -fsSL <url-do-raw>/init.sh)               # sem clonar o repo
+#
+# Flags:
+#   --dir <path>              onde criar a instalação (default: perguntado)
+#   --ctx <nome>              nome do contexto (default: personal)
+#   --archive-name <nome>     nome do repo da instalação (default: basename --dir)
+#   --github-user <login>     default: `gh api user`
+#   --github-org <login>      organização dos repos de trabalho (obrigatório)
+#   --linear-workspace <slug> slug do workspace no Linear (obrigatório)
+#   --linear-team <KEY>       prefixo de issues no Linear (obrigatório)
+#   --workspace-dir <nome>    pasta de repos de trabalho, relativa a ~ (default: Work)
+#   --with-skills/--no-skills instalar skills + comandos do OpenCode (default: pergunta)
+#   --with-memory/--no-memory configurar o backup de memória (default: pergunta)
+#   --update                  atualizar uma instalação existente em --dir (ver UPDATE.md)
+#   --force-update            em --update: sobrescreve os arquivos do template mesmo editados
+#
+set -euo pipefail
+
+SRC="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+TPL="$SRC/_context"
+STAMP=".archive-version"
+
+target=""
+ctx="personal"
+archive_name=""
+github_user=""
+github_org=""
+linear_workspace=""
+linear_team=""
+workspace_dir="Work"
+do_skills="ask"
+do_memory="ask"
+mode="install"
+force_update=false
+
+usage() { grep '^#' "$0" | sed 's/^# \{0,1\}//' | sed '/^!/d'; }
+
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --dir) target="${2:?}"; shift 2 ;;
+    --ctx) ctx="${2:?}"; shift 2 ;;
+    --archive-name) archive_name="${2:?}"; shift 2 ;;
+    --github-user) github_user="${2:?}"; shift 2 ;;
+    --github-org) github_org="${2:?}"; shift 2 ;;
+    --linear-workspace) linear_workspace="${2:?}"; shift 2 ;;
+    --linear-team) linear_team="${2:?}"; shift 2 ;;
+    --workspace-dir) workspace_dir="${2:?}"; shift 2 ;;
+    --with-skills) do_skills=true; shift ;;
+    --no-skills) do_skills=false; shift ;;
+    --with-memory) do_memory=true; shift ;;
+    --no-memory) do_memory=false; shift ;;
+    --update) mode="update"; shift ;;
+    --force-update) force_update=true; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) echo "opção desconhecida: $1" >&2; exit 1 ;;
+  esac
+done
+
+ask() {  # ask <var> <pergunta> <default>
+  local cur="${!1:-}" answer
+  [ -n "$cur" ] && return 0
+  read -r -p "$2 [${3:-}]: " answer
+  printf -v "$1" '%s' "${answer:-${3:-}}"
+}
+
+ask_required() {  # sem default; insiste até vir algo
+  local cur="${!1:-}" answer
+  [ -n "$cur" ] && return 0
+  while :; do
+    read -r -p "$2: " answer
+    [ -n "$answer" ] && { printf -v "$1" '%s' "$answer"; return 0; }
+    echo "  (obrigatório)"
+  done
+}
+
+ask_yes() {
+  local cur="${!1:-}" answer
+  { [ "$cur" = true ] || [ "$cur" = false ]; } && return 0
+  read -r -p "$2 [s/N]: " answer
+  case "$answer" in s|S|y|Y) printf -v "$1" '%s' true ;; *) printf -v "$1" '%s' false ;; esac
+}
+
+version() { git -C "$SRC" rev-parse --short HEAD 2>/dev/null || echo "sem-git-$(date +%Y%m%d)"; }
+
+# ---------------------------------------------------------------------------
+# --update: reaplica só os arquivos do template que você NÃO editou
+# ---------------------------------------------------------------------------
+managed_files() {  # lista os caminhos do template (relativos à instalação)
+  [ -d "$TPL" ] && (cd "$TPL" && find . -type f -not -name "$STAMP" | sed 's|^\./||')
+  for f in README.md UPDATE.md .gitignore init.sh; do
+    [ -f "$SRC/$f" ] && echo "$f"
+  done
+  (cd "$SRC/common" && find . -type f | sed 's|^\./||; s|^|common/|')
+}
+
+if [ "$mode" = update ]; then
+  ask_required target "--dir da instalação a atualizar"
+  target="${target/#\~/$HOME}"
+  [ -f "$target/$STAMP" ] || { echo "erro: $target não parece uma instalação (falta $STAMP)" >&2; exit 1; }
+  meta="$target/.archive-meta"
+  [ -f "$meta" ] || { echo "erro: $meta não encontrado (instalação antiga?) — reinstale com init.sh" >&2; exit 1; }
+  # shellcheck disable=SC1090
+  . "$meta"
+  old="$(cat "$target/$STAMP")"
+  new="$(version)"
+  echo "== atualizando $target: $old → $new =="
+  echo "   contexto: $CTX · org: $GITHUB_ORG · time: $LINEAR_TEAM"
+
+  # renderiza um arquivo do template com os valores desta instalação
+  render() {  # render <src> <dst>
+    sed -e "s|<CTX>|$CTX|g" \
+        -e "s|<ARCHIVE_NAME>|$ARCHIVE_NAME|g" \
+        -e "s|<ARCHIVE_DIR>|$ARCHIVE_DIR|g" \
+        -e "s|<GITHUB_USER>|$GITHUB_USER|g" \
+        -e "s|<GITHUB_ORG>|$GITHUB_ORG|g" \
+        -e "s|<LINEAR_WORKSPACE>|$LINEAR_WORKSPACE|g" \
+        -e "s|<LINEAR_TEAM>|$LINEAR_TEAM|g" \
+        -e "s|<WORKSPACE_DIR>|$WORKSPACE_DIR|g" "$1" > "$2"
+  }
+
+  changed=0; skipped=0; added=0
+  while IFS= read -r rel; do
+    src="$SRC/$rel"
+    [ -f "$src" ] || continue
+    # arquivos do molde vivem dentro do contexto (renomeado na instalação)
+    case "$rel" in
+      _context/*) dst="$target/$CTX/${rel#_context/}"; basedst="$target/.archive-base/$CTX/${rel#_context/}" ;;
+      *)          dst="$target/$rel";                  basedst="$target/.archive-base/$rel" ;;
+    esac
+    [ "$rel" = "_context/README.md" ] && continue   # README do molde ≠ README da instalação
+
+    tmp="$(mktemp)"; render "$src" "$tmp"
+
+    if [ ! -e "$dst" ]; then
+      mkdir -p "$(dirname "$dst")"; cp "$tmp" "$dst"; chmod +x "$dst" 2>/dev/null || true
+      added=$((added+1)); echo "  + ${dst#$target/}"
+    elif cmp -s "$dst" "$tmp"; then
+      :                                   # já está atualizado
+    elif [ -f "$basedst" ] && cmp -s "$dst" "$basedst"; then
+      cp "$tmp" "$dst"; changed=$((changed+1)); echo "  ~ ${dst#$target/}"
+    elif $force_update; then
+      cp "$tmp" "$dst"; changed=$((changed+1)); echo "  ~ ${dst#$target/} (sobrescrito: --force-update)"
+    else
+      cp "$tmp" "$dst.new"
+      skipped=$((skipped+1)); echo "  ! ${dst#$target/} (editado — versão nova em ${dst#$target/}.new)"
+    fi
+    mkdir -p "$(dirname "$basedst")"; cp "$tmp" "$basedst"   # base da próxima atualização
+    rm -f "$tmp"
+  done < <(managed_files)
+
+  echo "$new" > "$target/$STAMP"
+  echo
+  echo "atualizado: $old → $new"
+  echo "  novos: $added · atualizados: $changed · conflitos: $skipped"
+  [ "$skipped" -gt 0 ] && echo "  revise os *.new e apague-os depois de mesclar (ver UPDATE.md)."
+  echo "  NENHUM arquivo em $CTX/ foi alterado."
+  exit 0
+fi
+
+# ---------------------------------------------------------------------------
+# install
+# ---------------------------------------------------------------------------
+[ -d "$TPL" ] || { echo "erro: molde $TPL não encontrado" >&2; exit 1; }
+
+echo "== archive: instalação =="
+echo "origem: $SRC ($(version))"
+echo
+
+ask target "Onde salvar a sua instalação (caminho absoluto)" "$HOME/Work/$(basename "$SRC")"
+target="${target/#\~/$HOME}"
+
+if [ -e "$target" ] && [ -n "$(ls -A "$target" 2>/dev/null)" ]; then
+  echo "erro: $target já existe e não está vazio." >&2
+  echo "      escolha outra pasta, ou atualize a instalação existente com --update --dir $target" >&2
+  exit 1
+fi
+
+ask_required github_org "Organização do GitHub dos repos de trabalho (login exato)"
+ask_required linear_workspace "Slug do workspace no Linear (linear.app/<slug>)"
+ask_required linear_team "Prefixo/time de issues no Linear (ex.: ABC)"
+ask github_user "Seu usuário do GitHub" "$(gh api user --jq .login 2>/dev/null || true)"
+ask workspace_dir "Pasta de workspaces, relativa a ~ (repos de trabalho)" "Work"
+ask archive_name "Nome do repo da instalação" "$(basename "$target")"
+
+echo
+echo "== valores =="
+printf '  %-16s %s\n' \
+  DESTINO "$target" \
+  CTX "$ctx" \
+  ARCHIVE_NAME "$archive_name" \
+  GITHUB_USER "$github_user" \
+  GITHUB_ORG "$github_org" \
+  LINEAR_WORKSPACE "$linear_workspace" \
+  LINEAR_TEAM "$linear_team" \
+  WORKSPACE_DIR "~/$workspace_dir"
+echo
+read -r -p "Criar a instalação em $target? [s/N] " ok
+case "$ok" in s|S|y|Y) ;; *) echo "cancelado."; exit 0 ;; esac
+
+mkdir -p "$target"
+
+# 1) o template vai inteiro, DENTRO de <ctx>/; depois a pasta é renomeada.
+#    (cp -R "$TPL/." copiaria o conteúdo direto na raiz — o molde é um contexto.)
+mkdir -p "$target/$ctx"
+cp -R "$TPL/." "$target/$ctx/"
+rm -f "$target/backup/engram/exemplo/.gitkeep"
+rmdir "$target/backup/engram/exemplo" 2>/dev/null || true
+mkdir -p "$target/common"
+cp -R "$SRC/common/." "$target/common/"
+cp "$SRC/README.md" "$target/README.md"
+cp "$SRC/init.sh" "$target/init.sh"
+[ -f "$SRC/UPDATE.md" ] && cp "$SRC/UPDATE.md" "$target/UPDATE.md"
+[ -f "$SRC/.gitignore" ] && cp "$SRC/.gitignore" "$target/.gitignore"
+chmod +x "$target/init.sh" "$target/common/tools/"*.sh "$target/claude/bootstrap.sh" 2>/dev/null || true
+echo "$(version)" > "$target/$STAMP"
+
+# 2) o molde virou <ctx>/ no passo 1 — nada a renomear
+# 3) README do contexto (o do molde vira molde; a instalação ganha um README raiz)
+cat > "$target/$ctx/README.md" <<CTX_README
+# $ctx
+
+Contexto desta instalação. O que é geral está em [../common/](../common/README.md).
+
+| Pasta | Conteúdo | README |
+|---|---|---|
+| [docs/](docs/README.md) | docs operacionais | [docs/README.md](docs/README.md) |
+| [journal/](journal/README.md) | registro diário de trabalho (opcional) | [journal/README.md](journal/README.md) |
+| [backup/](backup/README.md) | export do Engram por projeto | [backup/README.md](backup/README.md) |
+| [claude/](claude/README.md) | memória + config do Claude Code / OpenCode | [claude/README.md](claude/README.md) |
+| [skills/](skills/README.md) | skills deste contexto | [skills/README.md](skills/README.md) |
+| [tools/](tools/README.md) | geradores dos docs de tasks (Linear/GitHub) | [tools/README.md](tools/README.md) |
+
+## Projetos (Engram)
+
+| \`project\` (Engram) | repo de trabalho |
+|---|---|
+| \`<PROJECT>\` | \`~/$workspace_dir/<REPO>\` |
+
+> Atualize os índices ao adicionar pastas/projetos.
+CTX_README
+
+# 4) substituição dos placeholders: SÓ nos arquivos da instalação, nunca na origem
+PLACEHOLDERS=(
+  "CTX=$ctx"
+  "ARCHIVE_NAME=$archive_name"
+  "ARCHIVE_DIR=$target"
+  "GITHUB_USER=$github_user"
+  "GITHUB_ORG=$github_org"
+  "LINEAR_WORKSPACE=$linear_workspace"
+  "LINEAR_TEAM=$linear_team"
+  "WORKSPACE_DIR=$workspace_dir"
+)
+
+echo
+echo "== preenchendo placeholders =="
+count=0
+while IFS= read -r -d '' f; do
+  case "$f" in
+    "$target/README.md"|"$target/UPDATE.md") continue ;;   # tabelas de placeholders vivem aqui
+    */backup/engram/*/*.json|*/backup/engram/*/.engram/*) continue ;;
+  esac
+  for pair in "${PLACEHOLDERS[@]}"; do
+    key="${pair%%=*}"; val="${pair#*=}"
+    [ -n "$val" ] || continue
+    esc=$(printf '%s' "$val" | sed -e 's/[&|\\]/\\&/g')
+    sed -i.bak "s|<${key}>|${esc}|g" "$f"
+    rm -f "$f.bak"
+  done
+  count=$((count + 1))
+done < <(find "$target" -type f \( -name '*.md' -o -name '*.sh' -o -name '*.mjs' -o -name '*.json' -o -name '*.jsonc' \) -print0)
+echo "$count arquivo(s) preenchido(s)"
+sed -i.bak "1s|^# .*|# $archive_name|" "$target/README.md" && rm -f "$target/README.md.bak"
+
+# metadados: o --update usa isto para reconstruir os valores desta instalação
+cat > "$target/.archive-meta" <<META
+CTX=$ctx
+ARCHIVE_NAME=$archive_name
+ARCHIVE_DIR=$target
+GITHUB_USER=$github_user
+GITHUB_ORG=$github_org
+LINEAR_WORKSPACE=$linear_workspace
+LINEAR_TEAM=$linear_team
+WORKSPACE_DIR=$workspace_dir
+META
+
+# base: cópia renderizada de cada arquivo do template como ficou na instalação.
+# Sem ela, --update não distinguiria "só placeholder preenchido" de "editado por você".
+mkdir -p "$target/.archive-base"
+while IFS= read -r -d '' f; do
+  rel="${f#$target/}"
+  mkdir -p "$target/.archive-base/$(dirname "$rel")"
+  cp "$f" "$target/.archive-base/$rel"
+done < <(find "$target" -type f -print0 \
+   -not -path '*/.git/*' -not -path '*/.archive-base/*' -not -name '.archive-meta')
+
+# 5) skills
+if [ "$do_skills" = ask ]; then
+  echo
+  echo "Instalar skills agora altera FORA da instalação: ~/.claude/skills (symlinks) e ~/.config/opencode/commands (cópias)."
+  ask_yes do_skills "Instalar as skills e os comandos do OpenCode agora?"
+fi
+if [ "$do_skills" = true ]; then
+  echo
+  echo "== skills =="
+  bash "$target/$ctx/claude/bootstrap.sh" --skills --opencode
+else
+  echo "- skills não instaladas (rode $ctx/claude/bootstrap.sh --skills --opencode depois)"
+fi
+
+# 6) gerenciador de memória
+if [ "$do_memory" = ask ]; then
+  echo
+  echo "Gerenciador de memória: 1) Engram  2) Nenhum"
+  read -r -p "Escolha [2]: " mem
+  case "${mem:-2}" in 1) do_memory=true ;; *) do_memory=false ;; esac
+fi
+if [ "$do_memory" = true ]; then
+  command -v engram >/dev/null 2>&1 || echo "aviso: binário 'engram' não encontrado no PATH — instale antes de usar o backup." >&2
+  echo "- backup configurado para o Engram: uma pasta por projeto em $ctx/backup/engram/<PROJECT>/"
+else
+  rm -rf "$target/$ctx/backup/engram" 2>/dev/null || true
+  echo "- sem gerenciador de memória: backup removido do contexto (os scripts ficam prontos, mas não são chamados)"
+fi
+
+# 7) git próprio da instalação (histórico seu, independente deste template)
+if git -C "$target" rev-parse --git-dir >/dev/null 2>&1; then
+  echo "- $target já é um repo git, não inicializei outro"
+else
+  read -r -p "Inicializar git em $target? [S/n] " g
+  case "${g:-s}" in s|S|y|Y) git -C "$target" init -q -b main && echo "- git inicializado (branch main)" ;; *) echo "- sem git (você pode rodar git init depois)" ;; esac
+fi
+
+cat <<EOF
+
+pronto. Sua instalação: $target
+  (esta pasta pode ser movida; os caminhos absolutos gravados nos arquivos
+   deixam de valer — rode ./init.sh --update --dir <novo-path> se mover)
+
+próximos passos:
+  1. preencha $ctx/docs/README.md, $ctx/tools/projects.json e $ctx/claude/memory/AGENTS.md
+  2. (opcional) preencha $ctx/journal/GUIA.md — ou apague a pasta se não usar journal
+  3. confira os placeholders restantes: <PROJECT>, <REPO>, <SDD_REPO>
+
+O repositório de origem ($SRC) não guarda seus dados: pode apagá-lo.
+Para atualizar depois, veja UPDATE.md.
+EOF

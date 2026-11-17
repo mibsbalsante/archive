@@ -1,0 +1,17 @@
+# Insumos descartáveis das ferramentas (fetch-linear/collect-prs/build-tasks/refresh-status)
+.tmp/
+**/.tmp/
+
+# macOS
+.DS_Store
+
+# Dump diário da skill trashcan (consumido e limpo pela journalling)
+**/journal/.trashcan.md
+
+# Config local de agentes (permissões específicas da máquina)
+.claude/settings.local.json
+
+# Metadados do instalador (base do --update; mudam em toda atualização)
+.archive-meta
+.archive-base/
+*.new

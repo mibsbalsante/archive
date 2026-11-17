@@ -1,0 +1,63 @@
+{
+  "enabledPlugins": {
+    "engram@engram": true
+  },
+  "extraKnownMarketplaces": {
+    "claude-plugins-official": {
+      "source": {
+        "source": "github",
+        "repo": "anthropics/claude-plugins-official"
+      },
+      "autoUpdate": true
+    },
+    "karpathy-skills": {
+      "source": {
+        "source": "github",
+        "repo": "forrestchang/andrej-karpathy-skills"
+      },
+      "autoUpdate": true
+    },
+    "claude-code-warp": {
+      "source": {
+        "source": "github",
+        "repo": "warpdotdev/claude-code-warp"
+      },
+      "autoUpdate": true
+    },
+    "engram": {
+      "source": {
+        "source": "github",
+        "repo": "Gentleman-Programming/engram"
+      }
+    }
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "p=$(cat); sid=$(echo \"$p\" | jq -r '.session_id'); dir=\"$HOME/.claude/skill-session-title\"; mkdir -p \"$dir\"; seen=\"$dir/$sid.seen\"; [ -f \"$seen\" ] && exit 0; touch \"$seen\"; prompt=$(echo \"$p\" | jq -r '.prompt'); skill=$(printf '%s' \"$prompt\" | sed -n 's#^/\\([A-Za-z0-9_:-]*\\).*#\\1#p'); [ -n \"$skill\" ] && printf '%s' \"$skill\" > \"$dir/$sid.skill\"; exit 0"
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "mcp__ccd_session_mgmt__set_session_title",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "p=$(cat); sid=$(echo \"$p\" | jq -r '.session_id'); dir=\"$HOME/.claude/skill-session-title\"; f=\"$dir/$sid.skill\"; [ -f \"$f\" ] || exit 0; skill=$(cat \"$f\"); tsid=$(echo \"$p\" | jq -r '.tool_input.session_id'); title=$(echo \"$p\" | jq -r '.tool_input.title'); { [ \"$tsid\" = 'self' ] || [ \"$tsid\" = \"$sid\" ]; } || exit 0; [ -n \"$title\" ] || exit 0; case \"$title\" in '['*) exit 0 ;; esac; newtitle=\"[$skill] $title\"; jq -n --arg t \"$newtitle\" '{hookSpecificOutput:{hookEventName:\"PreToolUse\",permissionDecision:\"allow\",updatedInput:{title:$t}}}'"
+          }
+        ]
+      }
+    ]
+  },
+  "permissions": {
+    "additionalDirectories": [
+      "~/<WORKSPACE_DIR>"
+    ],
+    "deny": []
+  }
+}
