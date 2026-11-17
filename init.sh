@@ -8,22 +8,36 @@
 # pode ser apagado (ou usado só para atualizar).
 #
 # Uso:
-#   bash init.sh [--dir <onde salvar>] [outras flags]     # interativo
-#   bash <(curl -fsSL <url-do-raw>/init.sh)               # sem clonar o repo
+#   bash init.sh                              # interativo (TTY)
+#   bash init.sh --guided                     # perguntas numeradas via stdin (agentes)
+#   bash init.sh --non-interactive [flags]    # sem prompt; exige as flags obrigatórias
+#   bash <(curl -fsSL <url-do-raw>/init.sh)   # sem clonar o repo
 #
-# Flags:
-#   --dir <path>              onde criar a instalação (default: perguntado)
+# Obrigatórias: --dir, --github-org, --linear-workspace, --linear-team
+# (sem elas, no modo interativo o script pergunta; nos outros, sai com erro).
+#
+# Flags de valor:
+#   --dir <path>              onde criar a instalação
 #   --ctx <nome>              nome do contexto (default: personal)
-#   --archive-name <nome>     nome do repo da instalação (default: basename --dir)
+#   --archive-name <nome>     nome do repo da instalação (default: basename do --dir)
 #   --github-user <login>     default: `gh api user`
-#   --github-org <login>      organização dos repos de trabalho (obrigatório)
-#   --linear-workspace <slug> slug do workspace no Linear (obrigatório)
-#   --linear-team <KEY>       prefixo de issues no Linear (obrigatório)
+#   --github-org <login>      organização do GitHub dos repos de trabalho
+#   --linear-workspace <slug> slug do workspace no Linear
+#   --linear-team <KEY>       prefixo/time de issues no Linear (ex.: ABC)
 #   --workspace-dir <nome>    pasta de repos de trabalho, relativa a ~ (default: Work)
-#   --with-skills/--no-skills instalar skills + comandos do OpenCode (default: pergunta)
-#   --with-memory/--no-memory configurar o backup de memória (default: pergunta)
-#   --update                  atualizar uma instalação existente em --dir (ver UPDATE.md)
-#   --force-update            em --update: sobrescreve os arquivos do template mesmo editados
+#
+# Modos e controle:
+#   --guided                  imprime as perguntas e lê respostas de stdin
+#   --non-interactive         nunca pergunta; falta de flag obrigatória = erro 2
+#   --yes                     confirma tudo (instalação e configs do --update)
+#   --print-config            imprime o JSON do que seria feito e sai
+#   --with-memory/--no-memory backup de memória: Engram (default do prompt: nenhum)
+#   --git/--no-git            `git init` na instalação (default: sim)
+#   --dry-run                 mostra, não escreve
+#
+# Atualização (ver UPDATE.md):
+#   --update                  atualiza a instalação em --dir
+#   --force-update            sobrescreve também os arquivos que você editou
 #
 set -euo pipefail
 
@@ -41,7 +55,10 @@ linear_workspace=""
 linear_team=""
 workspace_dir="Work"
 do_memory="ask"
+do_git="ask"
 mode="install"
+interactive="auto"      # auto | off (--non-interactive) | on (--guided)
+print_config=false
 force_update=false
 yes_all=false
 
@@ -57,29 +74,88 @@ while [ $# -gt 0 ]; do
     --linear-workspace) linear_workspace="${2:?}"; shift 2 ;;
     --linear-team) linear_team="${2:?}"; shift 2 ;;
     --workspace-dir) workspace_dir="${2:?}"; shift 2 ;;
-    --with-memory) do_memory=true; shift ;;
-    --no-memory) do_memory=false; shift ;;
     --with-skills|--no-skills|--skills|--opencode)
       echo "aviso: $1 não é mais do init.sh — use <instalação>/$ctx/claude/bootstrap.sh" >&2
       exit 1 ;;
     --update) mode="update"; shift ;;
     --force-update) force_update=true; shift ;;
     --yes|-y) yes_all=true; shift ;;
+    --non-interactive|--no-input) interactive="off"; shift ;;
+    --guided) interactive="on"; shift ;;
+    --with-memory) do_memory=true; shift ;;
+    --no-memory) do_memory=false; shift ;;
+    --git) do_git=true; shift ;;
+    --no-git) do_git=false; shift ;;
+    --print-config) print_config=true; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "opção desconhecida: $1" >&2; exit 1 ;;
   esac
 done
 
+use_prompt() {  # a decisão de perguntar: só interativo e sem --non-interactive
+  $yes_all && return 1     # --yes confirma tudo: não consome stdin
+  case "$interactive" in
+    off) return 1 ;;
+    on)  return 0 ;;
+    *)   [ -t 0 ] ;;
+  esac
+}
+
+guided_read() {  # guided_read <var> <pergunta> <default|-> — uma linha de stdin
+  local cur="${!1:-}" q="$2" def="$3" line
+  [ -n "$cur" ] && return 0
+  if [ "$def" = "-" ]; then
+    printf '%s > ' "$q"
+  else
+    printf '%s [%s] > ' "$q" "$def"
+  fi
+  IFS= read -r line || line=""
+  [ -z "$line" ] && line="$def"
+  printf -v "$1" '%s' "$line"
+}
+
+guided_mode() {  # lê todas as respostas de uma vez (uma por linha)
+  ctx=""          # o default não pode suprimir a leitura: a ordem das linhas importa
+  echo
+  echo "== modo guiado =="
+  echo "Responda uma por linha. Linha vazia = default. Abortar: Ctrl-C."
+  echo
+
+  guided_read target "1/7 destino" "-"
+  guided_read ctx "2/7 contexto" "personal"
+  guided_read github_org "3/7 github org" "-"
+  guided_read linear_workspace "4/7 linear workspace" "-"
+  guided_read linear_team "5/7 linear team" "-"
+  guided_read github_user "6/7 github user" "$(gh api user --jq .login 2>/dev/null || echo '')"
+  local mem
+  guided_read mem "7/7 memória (1=Engram, 2=nenhum)" "2"
+  case "$mem" in 1) do_memory=true ;; *) do_memory=false ;; esac
+  [ -z "$ctx" ] && ctx="personal"
+  [ -n "$target" ] && target="${target/#\~/$HOME}"
+}
+
+fatal_missing() {  # fatal_missing <flag> <descrição>
+  echo "erro: falta --$1 ($2)" >&2
+  if [ "$interactive" = "auto" ] && [ ! -t 0 ]; then
+    echo "      não há TTY para perguntar: informe a flag, use --guided (stdin) ou --non-interactive --yes." >&2
+  else
+    echo "      passe a flag, ou rode sem --non-interactive." >&2
+  fi
+  exit 2
+}
+
 ask() {  # ask <var> <pergunta> <default>
   local cur="${!1:-}" answer
   [ -n "$cur" ] && return 0
+  if ! use_prompt; then printf -v "$1" '%s' "${3:-}"; return 0; fi
   read -r -p "$2 [${3:-}]: " answer
   printf -v "$1" '%s' "${answer:-${3:-}}"
 }
 
-ask_required() {  # sem default; insiste até vir algo
+ask_required() {  # ask_required <var> <pergunta> <flag>
   local cur="${!1:-}" answer
   [ -n "$cur" ] && return 0
+  use_prompt || fatal_missing "${3:-<valor>}" "$2"
   while :; do
     read -r -p "$2: " answer
     [ -n "$answer" ] && { printf -v "$1" '%s' "$answer"; return 0; }
@@ -87,9 +163,10 @@ ask_required() {  # sem default; insiste até vir algo
   done
 }
 
-ask_yes() {
+ask_yes() {  # ask_yes <var> <pergunta> — não-interativo = false (default seguro)
   local cur="${!1:-}" answer
   { [ "$cur" = true ] || [ "$cur" = false ]; } && return 0
+  use_prompt || { printf -v "$1" '%s' false; return 0; }
   read -r -p "$2 [s/N]: " answer
   case "$answer" in s|S|y|Y) printf -v "$1" '%s' true ;; *) printf -v "$1" '%s' false ;; esac
 }
@@ -101,14 +178,16 @@ version() { git -C "$SRC" rev-parse --short HEAD 2>/dev/null || echo "sem-git-$(
 # ---------------------------------------------------------------------------
 managed_files() {  # caminhos relativos à instalação (o que o --update gerencia)
   [ -d "$PKG" ] && (cd "$PKG" && find . -type f -not -name "$STAMP" \
-    -not -path './_context/*' -not -path './common/*' \
+    -not -path './_context/*' -not -path './common/*' -not -path './personal/*' \
+    -not -name '.gitkeep' \
     | sed 's|^\./||')
-  [ -d "$TPL" ] && (cd "$TPL" && find . -type f -not -name "$STAMP" | sed 's|^\./||; s|^|_context/|')
+  [ -d "$TPL" ] && (cd "$TPL" && find . -type f -not -name "$STAMP" -not -path './backup/engram/*' \
+    | sed 's|^\./||; s|^|_context/|')
   (cd "$PKG/common" && find . -type f | sed 's|^\./||; s|^|common/|')
 }
 
 if [ "$mode" = update ]; then
-  ask_required target "--dir da instalação a atualizar"
+  ask_required target "--dir da instalação a atualizar" "dir"
   target="${target/#\~/$HOME}"
   [ -f "$target/$STAMP" ] || { echo "erro: $target não parece uma instalação (falta $STAMP)" >&2; exit 1; }
   meta="$target/.archive-meta"
@@ -146,6 +225,10 @@ if [ "$mode" = update ]; then
     echo "  --- config: ${f#$target/} ---"
     diff -u "$f" "$2" 2>/dev/null | sed -n '3,40p' | sed 's/^/    /'
     $yes_all && { echo "  (--yes: aplicando sem perguntar)"; return 0; }
+    if ! use_prompt; then
+      echo "  (mantido: não-interativo — use --yes para aplicar)"
+      return 1
+    fi
     read -r -p "  aplicar? [s/N] " a
     case "$a" in s|S|y|Y) return 0 ;; *) return 1 ;; esac
   }
@@ -160,6 +243,7 @@ if [ "$mode" = update ]; then
       *)          dst="$target/$rel";                  basedst="$target/.archive-base/$rel" ;;
     esac
     [ "$rel" = "_context/README.md" ] && continue   # README do molde ≠ README da instalação
+    case "$rel" in */backup/engram/*/.gitkeep) continue ;; esac  # placeholder do molde, não do usuário
 
     tmp="$(mktemp)"; render "$src" "$tmp"
 
@@ -211,7 +295,9 @@ echo "== archive: instalação =="
 echo "origem: $SRC ($(version))"
 echo
 
-ask target "Onde salvar a sua instalação (caminho absoluto)" "$HOME/Work/$(basename "$SRC")"
+[ "$interactive" = "on" ] && guided_mode
+
+ask_required target "Onde salvar a sua instalação (caminho absoluto)" "dir"
 target="${target/#\~/$HOME}"
 
 if [ -e "$target" ] && [ -n "$(ls -A "$target" 2>/dev/null)" ]; then
@@ -220,13 +306,21 @@ if [ -e "$target" ] && [ -n "$(ls -A "$target" 2>/dev/null)" ]; then
   exit 1
 fi
 
-ask_required github_org "Organização do GitHub dos repos de trabalho (login exato)"
-ask_required linear_workspace "Slug do workspace no Linear (linear.app/<slug>)"
-ask_required linear_team "Prefixo/time de issues no Linear (ex.: ABC)"
+ask_required github_org "Organização do GitHub dos repos de trabalho (login exato)" "github-org"
+ask_required linear_workspace "Slug do workspace no Linear (linear.app/<slug>)" "linear-workspace"
+ask_required linear_team "Prefixo/time de issues no Linear (ex.: ABC)" "linear-team"
 ask github_user "Seu usuário do GitHub" "$(gh api user --jq .login 2>/dev/null || true)"
 ask workspace_dir "Pasta de workspaces, relativa a ~ (repos de trabalho)" "Work"
 ask archive_name "Nome do repo da instalação" "$(basename "$target")"
+[ -z "$archive_name" ] && archive_name="$(basename "$target")"
 
+if $print_config; then
+  printf '{"dir":"%s","ctx":"%s","archive_name":"%s","github_user":"%s","github_org":"%s","linear_workspace":"%s","linear_team":"%s","workspace_dir":"%s","memory":%s,"git":%s}\n' \
+    "$target" "$ctx" "$archive_name" "$github_user" "$github_org" "$linear_workspace" "$linear_team" "$workspace_dir" \
+    "$( [ "$do_memory" = true ] && echo true || echo false )" \
+    "$( [ "$do_git" = true ] && echo true || echo false )"
+  exit 0
+fi
 echo
 echo "== valores =="
 printf '  %-16s %s\n' \
@@ -239,8 +333,13 @@ printf '  %-16s %s\n' \
   LINEAR_TEAM "$linear_team" \
   WORKSPACE_DIR "~/$workspace_dir"
 echo
-read -r -p "Criar a instalação em $target? [s/N] " ok
-case "$ok" in s|S|y|Y) ;; *) echo "cancelado."; exit 0 ;; esac
+if use_prompt && ! $yes_all; then
+  read -r -p "Criar a instalação em $target? [s/N] " ok
+  case "$ok" in s|S|y|Y) ;; *) echo "cancelado."; exit 0 ;; esac
+elif ! $yes_all && [ "$interactive" = off ]; then
+  echo "erro: --non-interactive exige --yes para confirmar a criação." >&2
+  exit 2
+fi
 
 mkdir -p "$target"
 
@@ -259,51 +358,52 @@ chmod +x "$target/init.sh" "$target/common/tools/"*.sh "$target/claude/bootstrap
 echo "$(version)" > "$target/$STAMP"
 
 # README da instalação (o README do template fica no template: fala sobre o template)
-cat > "$target/README.md" <<ARCHIVE_README
-# $archive_name
+cat > "$target/README.md" <<'ARCHIVE_README'
+# @@archive_name@@
 
 Arquivo pessoal: documentação operacional, memória do Engram, skills e journal, organizado por **contexto**.
 
 ```
-$archive_name/
+@@archive_name@@/
 ├── init.sh        # instalador / atualizador do template (UPDATE.md)
 ├── common/        # skills e scripts de qualquer contexto
-├── $ctx/          # o seu contexto (docs, journal, claude, skills, tools, backup)
+├── @@ctx@@/          # o seu contexto (docs, journal, claude, skills, tools, backup)
 └── personal/      # contexto de exemplo, vazio
 ```
 
 ## Contextos
 
-Cada pasta de primeiro nível com \`backup/engram/\` é um contexto (pasta \`_*\` é ignorada). Crie outro copiando \`$ctx/\` e trocando os dados, conforme o checklist do molde.
+Cada pasta de primeiro nível com `backup/engram/` é um contexto (pasta `_*` é ignorada). Crie outro copiando `@@ctx@@/` e trocando os dados, conforme o checklist do molde.
 
 ## Uso diário
 
 | O quê | Comando |
 |---|---|
-| backup + commit da memória e do journal | \`common/tools/backup-daily.sh $ctx\` |
-| restaurar em máquina nova | \`common/tools/restore.sh $ctx\` |
-| instalar skills/settings/comandos na máquina | \`$ctx/claude/bootstrap.sh --all\` (ver \`$ctx/claude/README.md\`) |
-| gerar o doc de tasks de um projeto | skill \`/archive-project-init\` |
-| próxima task | skill \`/archive-project-next-task\` |
-| registro do dia | skill \`/archive-journalling\` |
+| backup + commit da memória e do journal | `common/tools/backup-daily.sh @@ctx@@` |
+| restaurar em máquina nova | `common/tools/restore.sh @@ctx@@` |
+| instalar skills/settings/comandos na máquina | `@@ctx@@/claude/bootstrap.sh --all` (ver `@@ctx@@/claude/README.md`) |
+| gerar o doc de tasks de um projeto | skill `/archive-project-init` |
+| próxima task | skill `/archive-project-next-task` |
+| registro do dia | skill `/archive-journalling` |
 
 ## Atualizar o template
 
 Ver [UPDATE.md](UPDATE.md):
 
-\`\`\`bash
-bash <(curl -fsSL <url-do-raw>/init.sh) --update --dir "\$PWD"
-\`\`\`
+```bash
+bash <(curl -fsSL <url-do-raw>/init.sh) --update --dir "$PWD"
+```
 
 ## Próximos passos
 
-1. preencha \`$ctx/docs/README.md\`, \`$ctx/tools/projects.json\` e \`$ctx/claude/memory/AGENTS.md\`
-2. (opcional) preencha \`$ctx/journal/GUIA.md\` — ou apague a pasta se não usar journal
-3. resolva os placeholders que dependem de você: \`<PROJECT>\`, \`<REPO>\`, \`<SDD_REPO>\`
+1. preencha `@@ctx@@/docs/README.md`, `@@ctx@@/tools/projects.json` e `@@ctx@@/claude/memory/AGENTS.md`
+2. (opcional) preencha `@@ctx@@/journal/GUIA.md` — ou apague a pasta se não usar journal
+3. resolva os placeholders que dependem de você: `<PROJECT>`, `<REPO>`, `<SDD_REPO>`
 ARCHIVE_README
+sed -i.bak "s|@@archive_name@@|$archive_name|g; s|@@ctx@@|$ctx|g" "$target/README.md" && rm -f "$target/README.md.bak"
 
 # 2) o molde virou <ctx>/ no passo 1 — nada a renomear
-# 3) README do contexto (o do molde vira molde; a instalação ganha um README raiz)
+# 3) README do contexto
 cat > "$target/$ctx/README.md" <<CTX_README
 # $ctx
 
@@ -382,10 +482,14 @@ done < <(find "$target" -type f -print0 \
 
 # 5) gerenciador de memória (só decide o que fica em <ctx>/backup)
 if [ "$do_memory" = ask ]; then
-  echo
-  echo "Gerenciador de memória: 1) Engram  2) Nenhum"
-  read -r -p "Escolha [2]: " mem
-  case "${mem:-2}" in 1) do_memory=true ;; *) do_memory=false ;; esac
+  if use_prompt; then
+    echo
+    echo "Gerenciador de memória: 1) Engram  2) Nenhum"
+    read -r -p "Escolha [2]: " mem
+    case "${mem:-2}" in 1) do_memory=true ;; *) do_memory=false ;; esac
+  else
+    do_memory=false   # default seguro: sem backup de memória
+  fi
 fi
 if [ "$do_memory" = true ]; then
   command -v engram >/dev/null 2>&1 || echo "aviso: binário 'engram' não encontrado no PATH — instale antes de usar o backup." >&2
@@ -399,8 +503,19 @@ fi
 if git -C "$target" rev-parse --git-dir >/dev/null 2>&1; then
   echo "- $target já é um repo git, não inicializei outro"
 else
-  read -r -p "Inicializar git em $target? [S/n] " g
-  case "${g:-s}" in s|S|y|Y) git -C "$target" init -q -b main && echo "- git inicializado (branch main)" ;; *) echo "- sem git (você pode rodar git init depois)" ;; esac
+  if [ "$do_git" = ask ]; then
+    if use_prompt; then
+      read -r -p "Inicializar git em $target? [S/n] " g
+      case "${g:-s}" in s|S|y|Y) do_git=true ;; *) do_git=false ;; esac
+    else
+      do_git=true
+    fi
+  fi
+  if [ "$do_git" = true ]; then
+    git -C "$target" init -q -b main && echo "- git inicializado (branch main)"
+  else
+    echo "- sem git (você pode rodar git init depois)"
+  fi
 fi
 
 cat <<EOF

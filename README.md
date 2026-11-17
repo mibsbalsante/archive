@@ -29,6 +29,16 @@ bash /tmp/archive-template/init.sh
 rm -rf /tmp/archive-template
 ```
 
+Três formas de rodar: interativa (padrão, precisa de TTY), `--guided` (respostas numeradas via stdin) e `--non-interactive` (sem prompt; falta de flag obrigatória = erro). Para automação/agente: [AGENTS.md](AGENTS.md).
+
+```bash
+./init.sh --non-interactive --yes \
+  --dir ~/Work/archive --github-org <org> \
+  --linear-workspace <slug> --linear-team <ABC> --github-user <login>
+
+./init.sh --non-interactive ... --print-config   # JSON do plano, sem escrever
+```
+
 O `init.sh` pergunta:
 
 | Pergunta | Default | Vai para |
