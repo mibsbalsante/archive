@@ -13,7 +13,7 @@ Crie uma pasta por projeto do Engram que você quer arquivar. O `.db` do Engram 
 
 ## Backup
 
-Não há agendamento próprio: o backup roda **junto com a skill `journalling`**, após você confirmar e a skill gravar o registro (`common/tools/backup-daily.sh <CTX>`). Manual a qualquer momento:
+Não há agendamento próprio: o backup roda **junto com a skill `archive-journalling`**, após você confirmar e a skill gravar o registro (`common/tools/backup-daily.sh <CTX>`). Manual a qualquer momento:
 
 ```bash
 common/tools/backup-daily.sh <CTX>

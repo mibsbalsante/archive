@@ -1,6 +1,6 @@
 ---
-name: trashcan
-description: Anota qualquer texto no dump diário (<CTX>/journal/.trashcan.md) para a rotina de journalling incorporar depois. Só acrescenta; nunca lê, edita ou limpa o arquivo. Triggers: trashcan, joga na trashcan, anota na trashcan, guarda no dump do dia.
+name: archive-trashcan
+description: Anota qualquer texto no dump diário (<CTX>/journal/.trashcan.md) para a rotina de archive-journalling incorporar depois. Só acrescenta; nunca lê, edita ou limpa o arquivo. Triggers: trashcan, joga na trashcan, anota na trashcan, guarda no dump do dia, archive-trashcan.
 argument-hint: '<texto a guardar>'
 allowed-tools: Bash(mkdir *) Bash(date *) Bash(cat >> *)
 ---
@@ -27,6 +27,6 @@ Acrescentar o texto ao fim de `<ARCHIVE_DIR>/<CTX>/journal/.trashcan.md` (criar 
 - Gravar com heredoc de delimitador entre aspas (`cat >> arquivo <<'TRASHCAN_EOF'`), para o shell não expandir `$`, crases, `\` nem aspas. Nunca usar `echo`/`printf` com o texto inline.
 - O marcador é comentário HTML (não vira título), para não colidir com `#` do texto. Hora local via `date '+%Y-%m-%d %H:%M'`.
 - Sempre append (`>>`); nunca sobrescrever, reordenar ou apagar entradas.
-- O arquivo é ignorado pelo git (`.gitignore`). Quem consome e limpa é a `journalling`, após o commit do dia.
+- O arquivo é ignorado pelo git (`.gitignore`). Quem consome e limpa é a `archive-journalling`, após o commit do dia.
 
 Responder só com `anotado` (uma linha). Não interpretar, classificar nem agir sobre o conteúdo.

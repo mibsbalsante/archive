@@ -1,5 +1,5 @@
 ---
-name: project-init
+name: archive-project-init
 description: >
   Inicializa um projeto refinado no SDD: consolida o projeto Linear + os artefatos
   do repo de SDD num doc único de tasks (markdown legível, ordem por
@@ -7,6 +7,7 @@ description: >
   determinístico (script + template); a seção "## Descrições completas (verbatim do
   Linear)" é imutável. Use para "inicializar projeto", "inicializar a entrega",
   "organizar/ordenar tasks do projeto" ou "ordenar issues por dependência".
+  Triggers: project-init, iniciar tarefa, archive-project-init.
 argument-hint: <link-do-projeto-linear> <chave-da-entrega>
 arguments: [project_url, delivery_key]
 allowed-tools: Read, Grep, Glob, Bash, Write, Task
@@ -14,7 +15,7 @@ allowed-tools: Read, Grep, Glob, Bash, Write, Task
 
 # Inicialização de projeto
 
-Global. Gera o doc operacional da entrega em `<ARCHIVE_DIR>/<CTX>/docs/`. Para a próxima task depois, use `project-next-task`.
+Global. Gera o doc operacional da entrega em `<ARCHIVE_DIR>/<CTX>/docs/`. Para a próxima task depois, use `archive-project-next-task`.
 
 ## Regras
 
@@ -67,7 +68,7 @@ git -C $SDD_REPO switch main && git -C $SDD_REPO pull origin main
    8. `## Grafo de dependências` (Mermaid global)
    9. `## Divergências / atenção`
    10. `## Descrições completas (verbatim do Linear)` — **imutável**; por repo, 1 `<details>` por issue com `<a id="<LINEAR_TEAM>-####"></a>` antes
-8. **Salvar + registrar** — o doc vai para `<ARCHIVE_DIR>/<CTX>/docs/<pasta>/<chave>-tasks.md`; registre no dicionário com `node <ARCHIVE_DIR>/<CTX>/tools/projects.mjs add <handle> --doc <CTX>/docs/<pasta>/<chave>-tasks.md --nome "<nome>" [--linear <id-do-projeto>] [--default]` (o `add` regenera a seção `## Projetos` do `<CTX>/docs/README.md`). O `<handle>` é o que o `project-next-task` recebe.
+8. **Salvar + registrar** — o doc vai para `<ARCHIVE_DIR>/<CTX>/docs/<pasta>/<chave>-tasks.md`; registre no dicionário com `node <ARCHIVE_DIR>/<CTX>/tools/projects.mjs add <handle> --doc <CTX>/docs/<pasta>/<chave>-tasks.md --nome "<nome>" [--linear <id-do-projeto>] [--default]` (o `add` regenera a seção `## Projetos` do `<CTX>/docs/README.md`). O `<handle>` é o que o `archive-project-next-task` recebe.
 9. **Limpeza (obrigatória)** — `rm -rf <ARCHIVE_DIR>/<CTX>/tools/.tmp`. Persiste só o `<chave>-tasks.md`, `tools/` e `README.md`.
 10. **Commit** — `node <ARCHIVE_DIR>/common/tools/commit-doc.mjs <ARCHIVE_DIR>/<CTX>/docs/<pasta>/<chave>-tasks.md <ARCHIVE_DIR>/<CTX>/tools/projects.json <ARCHIVE_DIR>/<CTX>/docs/README.md [--push]` (arquivos já no repo → commit in place).
 

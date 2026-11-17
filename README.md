@@ -89,7 +89,7 @@ O `--update` só escreve arquivos do template e **nunca toca em `<ctx>/`**. Arqu
 | `<WORKSPACE_DIR>` | pasta de repos de trabalho, relativa a `~` | `init.sh` |
 | `<PROJECT>` | nome de um projeto do Engram | você, por contexto |
 | `<REPO>` | nome de um repositório de trabalho | você, por contexto |
-| `<SDD_REPO>` | caminho do repo de SDD/refinamento técnico | você (skill `project-init`) |
+| `<SDD_REPO>` | caminho do repo de SDD/refinamento técnico | você (skill `archive-project-init`) |
 
 Dentro da instalação, `<PROJECT>`, `<REPO>` e `<SDD_REPO>` continuam na sua mão — dependem dos seus projetos reais.
 
@@ -104,13 +104,13 @@ Dentro da instalação, `<PROJECT>`, `<REPO>` e `<SDD_REPO>` continuam na sua m�
 | `GITHUB_ORG` | `collect-prs`, `build-tasks`, `refresh-status` | organização dos PRs / URL do GitHub |
 | `LINEAR_TEAM` | `fetch-linear`, `refresh-status` | prefixo de issues no Linear |
 | `LINEAR_ACCESS_TOKEN` / `LINEAR_API_KEY` | `fetch-linear` | token da API GraphQL do Linear |
-| `SDD_REPO` | skill `project-init` | caminho do repo de SDD/refinamento técnico |
+| `SDD_REPO` | skill `archive-project-init` | caminho do repo de SDD/refinamento técnico |
 
 ## Gerenciador de memória
 
 O template assume o **Engram** por default, mas o backup é opcional:
 
-- **Com Engram:** instale o binário e o backup roda junto da skill `journalling` (`common/tools/backup-daily.sh <ctx>`), uma pasta por projeto em `<ctx>/backup/engram/<PROJECT>/`.
+- **Com Engram:** instale o binário e o backup roda junto da skill `archive-journalling` (`common/tools/backup-daily.sh <ctx>`), uma pasta por projeto em `<ctx>/backup/engram/<PROJECT>/`.
 - **Sem gerenciador:** o `init.sh` remove `<ctx>/backup/engram/`; docs e journal continuam versionados normalmente.
 
 Para mudar depois, apague ou crie `<ctx>/backup/engram/`.

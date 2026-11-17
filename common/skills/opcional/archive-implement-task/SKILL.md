@@ -1,26 +1,26 @@
 ---
-name: implement-task
-description: Variação enxuta de uma skill `implement-task` existente no ambiente (procura a original; depende dela e herda updates), com uma rodada de perguntas, exploração mínima, comandos escopados, sem rodar testes, sem esperar checks de CI (o usuário reporta o resultado), branch no padrão do repo e PR Draft na convenção do repo, só labels no Linear, sem teste visual nem merge com main. Agnóstico de repo e de CLI. Triggers: desenvolver issue, implement-task, implementar issue Linear.
+name: archive-implement-task
+description: Variação enxuta de uma skill `archive-implement-task` existente no ambiente (procura a original; depende dela e herda updates), com uma rodada de perguntas, exploração mínima, comandos escopados, sem rodar testes, sem esperar checks de CI (o usuário reporta o resultado), branch no padrão do repo e PR Draft na convenção do repo, só labels no Linear, sem teste visual nem merge com main. Agnóstico de repo e de CLI. Triggers: implement-task, desenvolver issue, implementar issue Linear, archive-implement-task.
 argument-hint: <ISSUE-ID> [branch-base] [path-docs-extras]
 allowed-tools: Read, Write, Edit, Grep, Glob, Bash, Task, AskUserQuestion, mcp__linear-server__*, mcp__plugin_linear_linear__*, mcp__claude_ai_Linear__*, mcp__github__*
 ---
 
-# implement-task
+# archive-implement-task
 
-Wrapper de uma skill `implement-task` existente: rodar as Fases 1-8 do original — **fonte da verdade, ler antes de agir**; não duplicar o fluxo — com os ajustes abaixo. **Agnóstico de repo** — deriva convenções do `CLAUDE.md`/config de cada projeto; nada de pnpm ou de time do Linear fixo.
+Wrapper de uma skill `archive-implement-task` existente: rodar as Fases 1-8 do original — **fonte da verdade, ler antes de agir**; não duplicar o fluxo — com os ajustes abaixo. **Agnóstico de repo** — deriva convenções do `CLAUDE.md`/config de cada projeto; nada de pnpm ou de time do Linear fixo.
 
 Entrada: `<ISSUE-ID> [branch-base] [path-docs-extras]`, recebida como texto logo após a invocação. Campo ausente ou vazio = não informado. Sem base, usar a atual; sem path, pedir no setup.
 
 ## Fonte da verdade (original)
 
-Procurar a skill `implement-task` existente no ambiente pela primeira alternativa que existir — nunca executar o fluxo de memória:
+Procurar a skill `archive-implement-task` existente no ambiente pela primeira alternativa que existir — nunca executar o fluxo de memória:
 
-1. Skill de plugin `implement-task` já carregada na sessão (Claude Code) — qualquer namespace (ex.: `<plugin>:implement-task`).
+1. Skill de plugin `archive-implement-task` já carregada na sessão (Claude Code) — qualquer namespace (ex.: `<plugin>:archive-implement-task`).
 2. `${CLAUDE_PLUGIN_ROOT}/skills/implement-task/SKILL.md` (o Claude Code define a variável).
-3. Skill `implement-task` de plugin instalada em `~/.claude/plugins/**/skills/implement-task/SKILL.md` — também o caso do OpenCode, que não define `CLAUDE_PLUGIN_ROOT`.
+3. Skill `archive-implement-task` de plugin instalada em `~/.claude/plugins/**/skills/implement-task/SKILL.md` — também o caso do OpenCode, que não define `CLAUDE_PLUGIN_ROOT`.
 4. Skill de projeto em `<repo>/.claude/skills/implement-task/SKILL.md` ou `<repo>/.opencode/skills/implement-task/SKILL.md`.
 
-> Esta skill **não** vem com o original: ela é um wrapper fino. Se o ambiente não tiver nenhuma `implement-task` original, parar e avisar — nunca reproduzir o fluxo de memória nem inventar fases.
+> Esta skill **não** vem com o original: ela é um wrapper fino. Se o ambiente não tiver nenhuma `archive-implement-task` original, parar e avisar — nunca reproduzir o fluxo de memória nem inventar fases.
 
 Os `shared/*.md` citados pelo original (`HUMAN-DECISION-OPS`, `WORKTREE-OPS`, `LINEAR-OPS`, `PATTERN-SEARCH`, `tdd-prompt`) ficam em `<CLAUDE_PLUGIN_ROOT>/shared/`; o addendum do repo, em `<CLAUDE_PLUGIN_ROOT>/skills/implement-task/repos/<repo>.md`, quando houver.
 

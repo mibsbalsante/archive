@@ -18,17 +18,19 @@ Consequência: **todo comando que precisa aparecer no `/` do OpenCode tem que se
 ```
 opencode/
 ├── commands/                 # → ~/.config/opencode/commands/  (global)
-│   ├── implement-task.md     # shim: skill implement-task (só com common/skills/opcional instalado)
-│   ├── branch-fix.md         # shim: skill branch-fix
-│   ├── branch-fix-clean.md   # shim: skill branch-fix-clean
-│   ├── comment-check.md      # shim: skill comment-check
-│   ├── journalling.md        # shim: skill journalling (opcional)
-│   ├── project-init.md       # shim: skill project-init (opcional)
-│   ├── project-next-task.md  # shim: skill project-next-task (opcional)
-│   └── trashcan.md           # shim: skill trashcan (opcional)
+│   ├── archive-implement-task.md     # shim: skill archive-implement-task (só com common/skills/opcional instalado)
+│   ├── archive-branch-fix.md         # shim: skill archive-branch-fix
+│   ├── archive-branch-fix-clean.md   # shim: skill archive-branch-fix-clean
+│   ├── archive-comment-check.md      # shim: skill archive-comment-check
+│   ├── archive-journalling.md        # shim: skill archive-journalling (opcional)
+│   ├── archive-project-init.md       # shim: skill archive-project-init (opcional)
+│   ├── archive-project-next-task.md  # shim: skill archive-project-next-task (opcional)
+│   └── archive-trashcan.md           # shim: skill archive-trashcan (opcional)
 └── global-config/            # → ~/.config/opencode/opencode.jsonc (global, SEM segredos)
     └── opencode.jsonc
 ```
+
+Todo comando carrega o prefixo `archive-` — igual ao nome da skill — para nunca colidir com os comandos de quem instala. O atalho `/archive-journalling` chama a skill `archive-journalling`.
 
 `project-commands/` e `project-config/` (shims e config específicos de um repo de trabalho) **não** vêm no template: crie em `<repo>/.opencode/` se precisar, com os shims equivalentes dos comandos daquele repo.
 

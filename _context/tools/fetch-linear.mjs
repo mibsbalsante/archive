@@ -11,7 +11,7 @@
  *   node fetch-linear.mjs --doc <CTX>/docs/<chave>-tasks.md --out <CTX>/tools/.tmp/<chave>.linear.json
  *   node fetch-linear.mjs --ids <LINEAR_TEAM>-3989,<LINEAR_TEAM>-3999 --out .tmp/x.json
  *   node fetch-linear.mjs --project <projectId> --out .tmp/x.json --full   # todas as issues do projeto
- *   node fetch-linear.mjs --doc <md> --out <json> --full                   # inclui description (project-init)
+ *   node fetch-linear.mjs --doc <md> --out <json> --full                   # inclui description (archive-project-init)
  *
  * Token: `LINEAR_ACCESS_TOKEN` (ou `LINEAR_API_KEY`) no ambiente.
  */

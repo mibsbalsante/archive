@@ -243,7 +243,7 @@ if (cfg.fonteSdd) {
   p(`> Fonte SDD: \`${cfg.fonteSdd}\`.`);
   p('>');
 }
-p(`> Snapshot: **${cfg.snapshot}**. \`Status\` e \`PR\` (e a seção *Próximas tasks*) são mantidos pelo \`project-next-task\`; o resto é gerado pelo \`project-init\`.`);
+p(`> Snapshot: **${cfg.snapshot}**. \`Status\` e \`PR\` (e a seção *Próximas tasks*) são mantidos pelo \`archive-project-next-task\`; o resto é gerado pelo \`archive-project-init\`.`);
 p();
 
 H('indice', 'Índice');
@@ -332,7 +332,7 @@ for (const repo of repoOrder) {
     p(`- **Level ${lvl}** — ${at.map((i) => `\`${i.codigo}\` ${i.id}`).join(' · ')}`);
   }
   p();
-  p('<!-- status:start — região mantida pelo project-next-task (só Status e PR) -->');
+  p('<!-- status:start — região mantida pelo archive-project-next-task (só Status e PR) -->');
   p();
   p('| # | Título | ID | Código | Repositório | Milestone | AFK/HITL | Status | PR | Linear | Bloqueia | Bloqueada por |');
   p('|---|---|---|---|---|---|---|---|---|---|---|---|');

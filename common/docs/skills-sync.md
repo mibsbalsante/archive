@@ -8,6 +8,23 @@ arquivo (fonte)  →  ~/.claude/skills (instalação, symlink)  →  OpenCode + 
 
 Não existe cópia intermediária: o OpenCode lê `~/.claude/skills` nativamente, e o Claude Code lê o mesmo diretório. Um alvo só, dois consumidores.
 
+## Prefixo `archive-`
+
+Toda skill deste arquivo carrega o prefixo **`archive-`** no `name` (e na pasta), e todo comando `/` replicado tem o mesmo prefixo. Assim nada colide com skills/comandos de quem instala:
+
+| Skill | Comando |
+|---|---|
+| `archive-branch-fix` | `/archive-branch-fix` |
+| `archive-branch-fix-clean` | `/archive-branch-fix-clean` |
+| `archive-comment-check` | `/archive-comment-check` |
+| `archive-journalling` | `/archive-journalling` |
+| `archive-trashcan` | `/archive-trashcan` |
+| `archive-project-init` | `/archive-project-init` |
+| `archive-project-next-task` | `/archive-project-next-task` |
+| `archive-implement-task` | `/archive-implement-task` |
+
+O gatilho antigo continua na `description` (`Triggers: journalling, ...`), então "registro do dia" e "trashcan" ainda carregam a skill certa. **Nomes de arquivo de dados não levam prefixo** (`journal/.trashcan.md` é o dump, não a skill).
+
 ## Camadas
 
 | Camada | Caminho | Papel |
@@ -78,7 +95,7 @@ Não são divergências de conteúdo — as skills pessoais são idênticas nos 
 | Item | OpenCode | Claude Code |
 |---|---|---|
 | Skills pessoais | via `~/.claude/skills` | via `~/.claude/skills` |
-| `branch-fix`, `branch-fix-clean`, `comment-check` | carregáveis pelo nome + `/` via wrapper; fora de `<available_skills>` | `/` nativo; fora da escolha automática |
+| `archive-branch-fix`, `archive-branch-fix-clean`, `archive-comment-check` | carregáveis pelo nome + `/` via wrapper; fora de `<available_skills>` | `/` nativo; fora da escolha automática |
 | Skills de plugin | nenhuma | `engram` (19), `karpathy` (1), `postman` (17), `warp` — não são pessoais, não sincronizam |
 | Built-ins | `opencode`, `report` | — |
 | Cowork | — | precisa do pacote `.skill` (`pack-skill.sh`) |

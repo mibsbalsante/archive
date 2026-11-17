@@ -1,10 +1,10 @@
 ---
-name: journalling
-description: Registro diário de trabalho no journal do <ARCHIVE_NAME> (<CTX>/journal), que alimenta a AVD. Coleta Linear, Slack e GitHub, mostra o rascunho e só grava após confirmação. Triggers: registro do dia, fechar o dia, log do dia, registro de ontem, revisão de sexta, journalling.
+name: archive-journalling
+description: Registro diário de trabalho no journal do <ARCHIVE_NAME> (<CTX>/journal), que alimenta a AVD. Coleta Linear, Slack e GitHub, mostra o rascunho e só grava após confirmação. Triggers: registro do dia, fechar o dia, log do dia, registro de ontem, revisão de sexta, archive-journalling.
 argument-hint: '[data AAAA-MM-DD] — vazio = hoje; "ontem" = dia útil anterior'
 ---
 
-# journalling
+# archive-journalling
 
 Fonte de verdade: `<ARCHIVE_DIR>/<CTX>/journal/GUIA.md` — **ler primeiro**. Convenções, rotina e campos estão lá; esta skill só resume o fluxo. Referência de competências/valores: `referencia-avd.md`; metas: `metas.md`; template: `_template-dia.md`.
 

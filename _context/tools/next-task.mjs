@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * next-task.mjs — orquestra o `project-next-task` num único comando:
+ * next-task.mjs — orquestra o `archive-project-next-task` num único comando:
  *   fetch-linear (GraphQL enxuto) ∥ collect-prs (2 buscas gh) → refresh-status → commit
  *
  * Nada de payload grande entra no contexto do agente: os insumos vão para
@@ -68,7 +68,7 @@ const doc = a.doc
   ? (isAbsolute(a.doc) ? a.doc : join(root, a.doc))
   : join(root, entry.doc);
 if (!existsSync(doc)) {
-  console.error(`next-task: doc não encontrado (${doc}) — rode o project-init primeiro`);
+  console.error(`next-task: doc não encontrado (${doc}) — rode o archive-project-init primeiro`);
   process.exit(1);
 }
 

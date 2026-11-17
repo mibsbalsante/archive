@@ -7,7 +7,7 @@
 #
 # Faz `engram export` + `engram sync` de cada projeto em <ctx>/backup/engram/,
 # commita (só <ctx>/backup e <ctx>/journal) e envia. Chamado pela skill
-# journalling; roda fora do shell interativo, por isso o PATH explícito e o
+# archive-journalling; roda fora do shell interativo, por isso o PATH explícito e o
 # fallback para o node do fnm.
 #
 set -euo pipefail

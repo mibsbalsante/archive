@@ -5,7 +5,7 @@
 # macOS
 .DS_Store
 
-# Dump diário da skill trashcan (consumido e limpo pela journalling)
+# Dump diário da skill archive-trashcan (consumido e limpo pela archive-journalling)
 **/journal/.trashcan.md
 
 # Config local de agentes (permissões específicas da máquina)

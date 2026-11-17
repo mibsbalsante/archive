@@ -1,6 +1,6 @@
 ---
-name: branch-fix-clean
-description: Remove as worktrees criadas pelo /branch-fix nesta sessão, checando antes se há trabalho não salvo.
+name: archive-branch-fix-clean
+description: Remove as worktrees criadas pelo /archive-branch-fix nesta sessão, checando antes se há trabalho não salvo. Triggers: branch-fix-clean, limpar worktrees, archive-branch-fix-clean.
 argument-hint: '[--all] [--force]'
 disable-model-invocation: true
 allowed-tools: Bash(git *) Bash(cat *) Bash(rm *) Bash(ls *)

@@ -14,7 +14,7 @@ Skills para o Claude (Code e Cowork). **Não guarda cópias**: a fonte é a skil
 O Cowork não lê `~/.claude/skills`. Gere o pacote e faça o upload em Settings → Capabilities → Skills:
 
 ```bash
-common/tools/pack-skill.sh journalling      # gera ~/Downloads/journalling.skill
+common/tools/pack-skill.sh archive-journalling      # gera ~/Downloads/journalling.skill
 ```
 
 Reempacote e suba de novo sempre que a skill original mudar. No Cowork a skill pode rodar sem acesso ao repo, `engram` e `gh`.

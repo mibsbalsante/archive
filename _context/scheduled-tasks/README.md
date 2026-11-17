@@ -4,7 +4,7 @@ Prompts originais das rotinas agendadas do Claude (Code e Cowork). Não são ins
 
 | Rotina | Agenda | Dependência | Para quê |
 |---|---|---|---|
-| [registro-do-dia-lembrete](registro-do-dia-lembrete/SKILL.md) | `0 18 * * 1-5` | skill [journalling](../../../common/skills/opcional/journalling/SKILL.md) | inicia o registro do dia; avisa por notificação quando precisa de confirmação |
+| [registro-do-dia-lembrete](registro-do-dia-lembrete/SKILL.md) | `0 18 * * 1-5` | skill [archive-journalling](../../../common/skills/opcional/archive-journalling/SKILL.md) | inicia o registro do dia; avisa por notificação quando precisa de confirmação |
 
 ## Instalar em outra máquina
 

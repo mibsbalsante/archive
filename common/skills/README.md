@@ -2,13 +2,15 @@
 
 Skills gerais — usam só `git`/`gh`, sem plugin nem repo específico. Instaladas por `<ctx>/claude/bootstrap.sh --skills` (junto com as opcionais e as do contexto).
 
-> **Fonte única e instalação:** a skill nasce aqui e vai por symlink para `~/.claude/skills`, lido pelo OpenCode e pelo Claude Code. Ver [../docs/skills-sync.md](../docs/skills-sync.md).
+> **Prefixo obrigatório:** toda skill daqui chama-se `archive-<nome>` (pasta e `name`), para nunca colidir com as skills de quem instala. O gatilho curto fica na `description`. Ver [../docs/skills-sync.md](../docs/skills-sync.md).
+
+> **Fonte única e instalação:** a skill nasce aqui e vai por symlink para `~/.claude/skills`, lido pelo OpenCode e pelo Claude Code.
 
 | Skill | Para quê |
 |---|---|
-| [branch-fix](branch-fix/SKILL.md) | correção guiada no branch atual |
-| [branch-fix-clean](branch-fix-clean/SKILL.md) | variação enxuta do `branch-fix` |
-| [comment-check](comment-check/SKILL.md) | avalia comentários de review contra o código do branch e sugere respostas |
+| [archive-branch-fix](archive-branch-fix/SKILL.md) | correção guiada no branch atual |
+| [archive-branch-fix-clean](archive-branch-fix-clean/SKILL.md) | variação enxuta do `archive-branch-fix` |
+| [archive-comment-check](archive-comment-check/SKILL.md) | avalia comentários de review contra o código do branch e sugere respostas |
 
 Skills que dependem de plugin/empresa ficam em [`opcional/`](opcional/) ou em `<ctx>/skills/`.
 
@@ -18,10 +20,10 @@ Skills que dependem de Linear, Slack, `gh` e dos scripts de `<ctx>/tools/`. Elas
 
 | Skill | Dependência | Para quê |
 |---|---|---|
-| [implement-task](opcional/implement-task/SKILL.md) | uma skill `implement-task` existente no ambiente (wrapper fino; inútil sem o original) | desenvolve uma issue do Linear com fluxo enxuto |
-| [project-init](opcional/project-init/SKILL.md) | `<ctx>/tools` + Linear | gera o doc de tasks de um projeto |
-| [project-next-task](opcional/project-next-task/SKILL.md) | `<ctx>/tools` + Linear + `gh` | atualiza status e lista as próximas tasks |
-| [journalling](opcional/journalling/SKILL.md) | `<ctx>/journal` + Linear, Slack, GitHub | registro diário que alimenta a AVD |
-| [trashcan](opcional/trashcan/SKILL.md) | `<ctx>/journal` | anota texto solto no dump diário que a `journalling` consome |
+| [archive-implement-task](opcional/archive-implement-task/SKILL.md) | uma skill `implement-task` original existente no ambiente (wrapper fino; inútil sem o original) | desenvolve uma issue do Linear com fluxo enxuto |
+| [archive-project-init](opcional/archive-project-init/SKILL.md) | `<ctx>/tools` + Linear | gera o doc de tasks de um projeto |
+| [archive-project-next-task](opcional/archive-project-next-task/SKILL.md) | `<ctx>/tools` + Linear + `gh` | atualiza status e lista as próximas tasks |
+| [archive-journalling](opcional/archive-journalling/SKILL.md) | `<ctx>/journal` + Linear, Slack, GitHub | registro diário que alimenta a AVD |
+| [archive-trashcan](opcional/archive-trashcan/SKILL.md) | `<ctx>/journal` | anota texto solto no dump diário que a `archive-journalling` consome |
 
 > Atualize a tabela ao adicionar uma skill.

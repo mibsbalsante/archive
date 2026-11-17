@@ -1,6 +1,6 @@
 ---
-name: branch-fix
-description: Corrige erros em um branch. Por padrão isola em uma worktree; ao final pergunta quais scripts do package.json rodar e se deve commitar/dar push.
+name: archive-branch-fix
+description: Corrige erros em um branch. Por padrão isola em uma worktree; ao final pergunta quais scripts do package.json rodar e se deve commitar/dar push. Triggers: branch-fix, corrigir branch, archive-branch-fix.
 argument-hint: <branch> [-c] [-n] + erros nas linhas seguintes
 arguments: [branch]
 disable-model-invocation: true

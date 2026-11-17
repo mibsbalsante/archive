@@ -1,5 +1,5 @@
 ---
-name: project-next-task
+name: archive-project-next-task
 description: >
   Atualiza os status do doc de tasks a partir do Linear e responde as tasks do
   projeto. Altera só Status e PR das tabelas mestre; a saída é uma única tabela com
@@ -7,13 +7,14 @@ description: >
   e com elegíveis primeiro. Commita o doc no branch main do repo <ARCHIVE_DIR>.
   Use para "qual a próxima task", "o que pego agora",
   "atualiza os status e me diz a próxima" ou "next task".
+  Triggers: project-next-task, próxima task, archive-project-next-task.
 argument-hint: '[<handle>] [--dry-run]'
 allowed-tools: Bash, Read
 ---
 
 # Próxima task (refresh de status)
 
-Global, para o projeto já inicializado pelo `project-init`. O doc alvo vem do dicionário `<ARCHIVE_DIR>/<CTX>/tools/projects.json` (via `<handle>`; sem handle, usa o `default`). Atualiza o doc com o status fresco do Linear **antes** de responder e devolve **só uma tabela**.
+Global, para o projeto já inicializado pelo `archive-project-init`. O doc alvo vem do dicionário `<ARCHIVE_DIR>/<CTX>/tools/projects.json` (via `<handle>`; sem handle, usa o `default`). Atualiza o doc com o status fresco do Linear **antes** de responder e devolve **só uma tabela**.
 
 ## Fluxo
 
@@ -33,7 +34,7 @@ node <ARCHIVE_DIR>/<CTX>/tools/next-task.mjs $ARGUMENTS
 
 - **Pode** (via script): células `Status`/`PR` das tabelas mestre (entre `<!-- status:start -->`/`<!-- status:end -->`) e a seção `## Próximas tasks`.
 - **Nunca:** cabeçalho, índice, ordem de entrega, grafo, divergências e a seção `## Descrições completas (verbatim do Linear)`.
-- Desatualizado fora disso → não corrigir aqui; sugerir rodar `project-init`.
+- Desatualizado fora disso → não corrigir aqui; sugerir rodar `archive-project-init`.
 
 ## Saída (única tabela, por repositório)
 
@@ -65,4 +66,4 @@ Editar `Status`/`PR` à mão é o último recurso.
 
 - O commit é feito pelo `commit-doc.mjs`, que grava no repo `<ARCHIVE_DIR>` (branch `main`) — **nunca** no work repo.
 - Cancelada satisfaz o pré-requisito, mas pode indicar escopo descartado; `Contract from` soft não bloqueia, mas pode impedir o fechamento.
-- Doc inexistente → rodar `project-init` primeiro.
+- Doc inexistente → rodar `archive-project-init` primeiro.

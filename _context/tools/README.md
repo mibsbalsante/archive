@@ -2,7 +2,7 @@
 
 > Scripts gerais de arquivo/backup (`commit-doc`, `refresh-archive`, `index-engram`, `backup-daily`, `restore`) ficam em [../../common/tools/](../../common/tools/README.md).
 
-Scripts determinísticos usados pelas skills `project-init` e `project-next-task`.
+Scripts determinísticos usados pelas skills `archive-project-init` e `archive-project-next-task`.
 Transformam **arquivo → arquivo** (nada de payload grande no contexto do agente):
 os insumos ficam em `<CTX>/tools/.tmp/`, descartável e apagado no fim de cada execução.
 
@@ -10,7 +10,7 @@ os insumos ficam em `<CTX>/tools/.tmp/`, descartável e apagado no fim de cada e
 
 > Os exemplos abaixo usam `<CTX>` (o nome do seu contexto) e `<LINEAR_TEAM>`/`<GITHUB_ORG>`/`<GITHUB_USER>`.
 
-## `next-task.mjs` — orquestra o project-next-task (1 comando)
+## `next-task.mjs` — orquestra o archive-project-next-task (1 comando)
 
 ```bash
 node <CTX>/tools/next-task.mjs [<handle>] [--doc <md>] [--no-commit] [--dry-run] [--keep-tmp] [--list]
@@ -33,7 +33,7 @@ node <CTX>/tools/projects.mjs sync     # regenera a seção ## Projetos do READM
   Linear, ou `""`). O `next-task` lê daqui — sem path hardcoded.
 - A seção `## Projetos` do `<CTX>/docs/README.md` é **gerada** por `sync` (entre
   `<!-- projects:start -->`/`<!-- projects:end -->`); não editar essa lista à mão.
-- O `project-init` registra/atualiza a entrada com `projects.mjs add` ao criar o doc de tasks.
+- O `archive-project-init` registra/atualiza a entrada com `projects.mjs add` ao criar o doc de tasks.
 
 ## `fetch-linear.mjs` — status do Linear via GraphQL enxuta
 
@@ -62,7 +62,7 @@ node <CTX>/tools/collect-prs.mjs (--doc <md> | --ids <LINEAR_TEAM>-1,<LINEAR_TEA
 - `in:title` + filtro local pelo `[<LINEAR_TEAM>-####]` do título evitam casar por corpo
   (um PR de outra issue entrando no mapa).
 
-## `build-tasks.mjs` — gera o doc completo (project-init)
+## `build-tasks.mjs` — gera o doc completo (archive-project-init)
 
 ```bash
 node <CTX>/tools/build-tasks.mjs \
@@ -107,7 +107,7 @@ na seção *Próximas tasks* e nas descrições). Os links de dependência **den
 internos (`[B7] [<LINEAR_TEAM>-3999](#<LINEAR_TEAM>-3999)`); só a coluna `Linear` e a saída do `refresh-status`
 usam a URL completa.
 
-## `refresh-status.mjs` — atualiza status/PR e imprime as tasks (project-next-task)
+## `refresh-status.mjs` — atualiza status/PR e imprime as tasks (archive-project-next-task)
 
 ```bash
 node <CTX>/tools/refresh-status.mjs --doc <CTX>/docs/<chave>-tasks.md \

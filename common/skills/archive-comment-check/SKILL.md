@@ -1,6 +1,6 @@
 ---
-name: comment-check
-description: Avalia comentários de review contra o código do branch atual e diz quais procedem, com resposta sugerida para cada um.
+name: archive-comment-check
+description: Avalia comentários de review contra o código do branch atual e diz quais procedem, com resposta sugerida para cada um. Triggers: comment-check, checar comentários, archive-comment-check.
 argument-hint: '[comentários colados] — vazio busca os da PR atual'
 disable-model-invocation: true
 allowed-tools: Bash(git *) Bash(gh *) Read Grep Glob

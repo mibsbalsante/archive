@@ -8,7 +8,7 @@ Registro diário de trabalho (opcional). Serve como matéria-prima para escrever
 
 | Arquivo | Papel | Estado |
 |---|---|---|
-| [GUIA.md](GUIA.md) | Fonte de verdade da skill `journalling` (convenções, rotina, como escrever a AVD) | esqueleto — preencher |
+| [GUIA.md](GUIA.md) | Fonte de verdade da skill `archive-journalling` (convenções, rotina, como escrever a AVD) | esqueleto — preencher |
 | [referencia-avd.md](referencia-avd.md) | Formato, escala, competências, valores e feedback da AVD | esqueleto — preencher |
 | [metas.md](metas.md) | Metas do ciclo (Desenvolvimento AVD / Entrega) | esqueleto — preencher |
 | [_template-dia.md](_template-dia.md) | Template de um registro diário | pronto |
@@ -16,7 +16,7 @@ Registro diário de trabalho (opcional). Serve como matéria-prima para escrever
 
 ## Fluxo
 
-1. "registro do dia" / "fechar o dia" → skill `journalling` ([../../../common/skills/opcional/journalling/SKILL.md](../../../common/skills/opcional/journalling/SKILL.md)).
+1. "registro do dia" / "fechar o dia" → skill `archive-journalling` ([../../../common/skills/opcional/archive-journalling/SKILL.md](../../../common/skills/opcional/archive-journalling/SKILL.md)).
 2. Skill coleta (Linear, Slack, GitHub), mostra o rascunho e **só grava após confirmação**.
 3. Grava `AAAA/AAAA-MM-DD.md`, atualiza `metas.md` se confirmado e salva um gist no Engram (`project: journal`, `topic_key: journal/AAAA-MM-DD`, ponteiro para o arquivo).
 4. A skill roda `common/tools/backup-daily.sh <CTX>`, que commita e envia (`<CTX>/backup/engram/journal/` + esta pasta).

@@ -4,7 +4,7 @@ Scripts de backup, restore e indexação do arquivo. Todos aceitam `--ctx <nome>
 
 | Script | Para quê |
 |---|---|
-| [backup-daily.sh](backup-daily.sh) | backup completo de um contexto (acionado pela skill `journalling`) |
+| [backup-daily.sh](backup-daily.sh) | backup completo de um contexto (acionado pela skill `archive-journalling`) |
 | [restore.sh](restore.sh) | importa no Engram local os exports de um contexto |
 | [refresh-archive.mjs](refresh-archive.mjs) | export + sync do Engram por projeto, commit e push |
 | [index-engram.mjs](index-engram.mjs) | indexa `<ctx>/docs` no Engram (gist + ponteiro) |
