@@ -121,7 +121,7 @@ function cmpCode(x, y) {
   return lx !== ly ? (lx < ly ? -1 : 1) : nx - ny;
 }
 
-/** Extrai o corpo verbatim de cada issue, delimitado por <a id="isp-####"></a>. */
+/** Extrai o corpo verbatim de cada issue, delimitado por `<a id="<team>-####"></a>`. */
 function extractBodies(docPath) {
   if (!docPath) return {};
   const md = readFileSync(docPath, 'utf8');
@@ -129,7 +129,7 @@ function extractBodies(docPath) {
   if (idx === -1) return {};
   const tail = md.slice(idx);
   const starts = [];
-  const re = /<a id="(isp-\d+)"><\/a>/gi;
+  const re = /<a id="([a-z]+-\d+)"><\/a>/gi;
   let m;
   while ((m = re.exec(tail))) starts.push({ id: m[1].toUpperCase(), pos: m.index, end: re.lastIndex });
   const bodies = {};

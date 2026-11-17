@@ -382,6 +382,7 @@ Cada pasta de primeiro nível com `backup/engram/` é um contexto (pasta `_*` é
 | backup + commit da memória e do journal | `common/tools/backup-daily.sh @@ctx@@` |
 | restaurar em máquina nova | `common/tools/restore.sh @@ctx@@` |
 | instalar skills/settings/comandos na máquina | `@@ctx@@/claude/bootstrap.sh --all` (ver `@@ctx@@/claude/README.md`) |
+| preparar o ambiente dos scripts | `source .archive-env` |
 | gerar o doc de tasks de um projeto | skill `/archive-project-init` |
 | próxima task | skill `/archive-project-next-task` |
 | registro do dia | skill `/archive-journalling` |
@@ -469,6 +470,16 @@ LINEAR_WORKSPACE=$linear_workspace
 LINEAR_TEAM=$linear_team
 WORKSPACE_DIR=$workspace_dir
 META
+
+# .archive-env: valores prontos para os scripts (source antes de rodar qualquer tool)
+cat > "$target/.archive-env" <<ENV
+# Gerado pelo init.sh. Use: source .archive-env
+export ENGRAM_ARCHIVE="$target"
+export ENGRAM_CTX="$ctx"
+export GITHUB_ORG="$github_org"
+export LINEAR_TEAM="$linear_team"
+# export ENGRAM_PROJECT="<PROJECT>"   # descomente e troque pelo seu projeto do Engram
+ENV
 
 # base: cópia renderizada de cada arquivo do template como ficou na instalação.
 # Sem ela, --update não distinguiria "só placeholder preenchido" de "editado por você".

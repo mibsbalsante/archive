@@ -11,6 +11,7 @@ archive/
 ├── init.sh          # instalador e atualizador (ver UPDATE.md)
 ├── README.md        # este arquivo
 ├── UPDATE.md        # regras do --update
+├── AGENTS.md        # contrato para agentes (CLAUDE.md → symlink)
 └── template/        # tudo que é instalado
     ├── _context/    # molde de contexto → vira <ctx>/
     ├── common/      # skills e scripts de qualquer contexto
@@ -62,6 +63,13 @@ Ao terminar, a instalação tem git próprio e o repo de origem pode ser apagado
 ├── common/        # skills e scripts de qualquer contexto
 ├── <ctx>/         # docs, journal, claude, skills, tools, backup
 └── personal/      # contexto de exemplo
+```
+
+A instalação ganha um `.archive-env` com os valores já resolvidos — `source .archive-env` antes de usar os scripts de `common/tools/` sem flags:
+
+```bash
+cd <archive> && source .archive-env
+node common/tools/index-engram.mjs --project <PROJECT>
 ```
 
 Dois scripts distintos:

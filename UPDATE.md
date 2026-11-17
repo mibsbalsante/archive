@@ -52,6 +52,7 @@ Dois artefatos por instalação, criados pelo `init.sh`:
 | `.archive-version` | commit curto do template aplicado (ou `sem-git-<data>`) |
 | `.archive-meta` | `CTX`, `ARCHIVE_NAME`, `ARCHIVE_DIR`, `GITHUB_*`, `LINEAR_*`, `WORKSPACE_DIR` |
 | `.archive-base/<arquivo>` | cópia renderizada de cada arquivo do template como ficou após o install/update |
+| `.archive-env` | `export` de `ENGRAM_ARCHIVE`, `ENGRAM_CTX`, `GITHUB_ORG`, `LINEAR_TEAM` para os scripts |
 
 `.archive-base` é a linha de base do próximo diff. Sem ele, qualquer arquivo preenchido pelo install seria tratado como editado.
 
