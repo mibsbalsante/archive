@@ -1,22 +1,24 @@
 #!/usr/bin/env bash
 #
-# bootstrap.sh — inicializa o Claude Code numa máquina nova a partir deste arquivo.
+# bootstrap.sh — instala ESTE arquivo na máquina (Claude Code + OpenCode).
 #
-# Escreve um `.claude/settings.json` básico e SEM segredos, mas só quando o
-# settings é pedido (sem nenhuma flag, ou com `--settings`). Se já existir um
-# settings no destino, faz backup como `<destino>.old` antes de sobrescrever.
+# O bootstrap é o segundo instalador: o `init.sh` (na raiz) cria o seu archive
+# pessoal numa pasta; este script leva a configuração da instalação para o HOME.
+# Ele é o único que escreve FORA da pasta do archive.
 #
 # Uso:
-#   ./bootstrap.sh                 # instala em ~/.claude/settings.json
-#   ./bootstrap.sh <destino>       # outro caminho de settings.json
-#   ./bootstrap.sh --settings      # só o settings (explícito)
-#   ./bootstrap.sh --memory        # também instala o CLAUDE.md global (com .old)
-#   ./bootstrap.sh --skills        # também linka as skills (common/skills + common/skills/opcional + <ctx>/skills)
-#   ./bootstrap.sh --opencode      # também copia os comandos globais do OpenCode
-#   ./bootstrap.sh --all           # settings + memória + skills + opencode
+#   ./bootstrap.sh                     # pergunta cada item
+#   ./bootstrap.sh --all               # settings + memória + skills + opencode
+#   ./bootstrap.sh --settings          # ~/.claude/settings.json
+#   ./bootstrap.sh --memory            # ~/.config/opencode/AGENTS.md + ~/.claude/CLAUDE.md
+#   ./bootstrap.sh --skills            # symlinks de skill em ~/.claude/skills
+#   ./bootstrap.sh --opencode          # comandos em ~/.config/opencode/commands
+#   ./bootstrap.sh --dry-run           # mostra o que faria, sem escrever
+#   ./bootstrap.sh --yes               # não pergunta arquivo a arquivo (ainda faz backup)
+#   ./bootstrap.sh <destino>           # outro caminho de settings.json
 #
-# Flags não pedem o settings implicitamente: `--opencode` sozinho não toca
-# ~/.claude/settings.json.
+# Nada é sobrescrito em silêncio: todo arquivo existente é copiado para
+# `<arquivo>.old` antes, e cada escrita pede confirmação (exceto com --yes).
 #
 set -euo pipefail
 
@@ -26,10 +28,12 @@ OPENCODE_HOME="${OPENCODE_CONFIG_DIR:-$HOME/.config/opencode}"
 SKILLS_SRC=("$SCRIPT_DIR/../../common/skills" "$SCRIPT_DIR/../../common/skills/opcional" "$SCRIPT_DIR/../skills")
 
 target="$CLAUDE_HOME/settings.json"
-do_settings=false
-do_memory=false
-do_skills=false
-do_opencode=false
+do_settings=""
+do_memory=""
+do_skills=""
+do_opencode=""
+dry_run=false
+assume_yes=false
 flags_seen=false
 
 for arg in "$@"; do
@@ -38,118 +42,128 @@ for arg in "$@"; do
     --memory) do_memory=true; flags_seen=true ;;
     --skills) do_skills=true; flags_seen=true ;;
     --opencode) do_opencode=true; flags_seen=true ;;
-    --all)    do_settings=true; do_memory=true; do_skills=true; do_opencode=true; flags_seen=true ;;
-    -h|--help)
-      grep '^#' "$0" | sed 's/^# \{0,1\}//' | sed '/^!/d'
-      exit 0 ;;
+    --all) do_settings=true; do_memory=true; do_skills=true; do_opencode=true; flags_seen=true ;;
+    --dry-run) dry_run=true ;;
+    --yes|-y) assume_yes=true ;;
+    -h|--help) grep '^#' "$0" | sed 's/^# \{0,1\}//' | sed '/^!/d'; exit 0 ;;
     *) target="$arg" ;;
   esac
 done
 
-$flags_seen || do_settings=true
-
-backup() {
-  local f="$1"
-  if [ -f "$f" ]; then
-    cp "$f" "$f.old"
-    echo "backup: $f -> $f.old"
-  fi
-}
-
-# 1) settings.json básico (sem segredos) — só quando pedido
-if $do_settings; then
-  base="$SCRIPT_DIR/settings.base.json"
-  [ -f "$base" ] || { echo "erro: $base não encontrado" >&2; exit 1; }
-  mkdir -p "$(dirname "$target")"
-  backup "$target"
-  cp "$base" "$target"
-  echo "settings escrito: $target"
+if ! $flags_seen; then
+  echo "== bootstrap do archive: o que instalar nesta máquina =="
+  echo "(cada item escreve fora da pasta do archive; backup .old é sempre gerado)"
+  ask() { local def="$1" q="$2" a; read -r -p "$q [$def]: " a; echo "${a:-$def}"; }
+  case "$(ask 's' '1) settings.json do Claude? [s/N]')" in s|S|y|Y) do_settings=true ;; *) do_settings=false ;; esac
+  case "$(ask 's' '2) memória global (AGENTS.md + CLAUDE.md)? [s/N]')" in s|S|y|Y) do_memory=true ;; *) do_memory=false ;; esac
+  case "$(ask 's' '3) skills (symlink em ~/.claude/skills)? [s/N]')" in s|S|y|Y) do_skills=true ;; *) do_skills=false ;; esac
+  case "$(ask 's' '4) comandos do OpenCode? [s/N]')" in s|S|y|Y) do_opencode=true ;; *) do_opencode=false ;; esac
 fi
 
-# 2) memória global
-#    AGENTS.md é a fonte da verdade (lida nativamente pelo OpenCode);
-#    CLAUDE.md é só um stub com `@~/.config/opencode/AGENTS.md` para o Claude Code.
-if $do_memory; then
+# confirma uma escrita e faz backup .old do destino
+ask_write() {  # ask_write <arquivo> — pergunta; SEM backup (quem chama faz se escrever)
+  local f="$1" a
+  $assume_yes && return 0
+  # sem TTY (script/CI): não pergunta e mantém o arquivo — use --yes para aplicar
+  if [ ! -t 0 ]; then
+    echo "  mantido $f (sem TTY para confirmar; use --yes)"
+    return 1
+  fi
+  read -r -p "  escrever $f? [s/N] " a
+  case "$a" in s|S|y|Y) return 0 ;; *) echo "  mantido $f"; return 1 ;; esac
+}
+
+install_file() {  # install_file <origem> <destino>
+  local src="$1" dst="$2"
+  if $dry_run; then echo "  [dry-run] $src -> $dst"; return 0; fi
+  mkdir -p "$(dirname "$dst")"
+  # destino novo: não há o que confirmar nem backup a fazer
+  if [ ! -e "$dst" ]; then
+    cp "$src" "$dst"; echo "  criado: $dst"; return 0
+  fi
+  # destino existente: confirma (sem TTY mantém) e faz .old só se for escrever
+  ask_write "$dst" || return 0
+  cp "$dst" "$dst.old"; echo "  backup: $dst -> $dst.old"
+  cp "$src" "$dst"; echo "  atualizado: $dst"
+}
+
+# 1) settings.json (sem segredos)
+if [ "$do_settings" = true ]; then
+  echo "-- settings"
+  base="$SCRIPT_DIR/settings.base.json"
+  [ -f "$base" ] || { echo "erro: $base não encontrado" >&2; exit 1; }
+  install_file "$base" "$target"
+fi
+
+# 2) memória global: AGENTS.md é a fonte (OpenCode lê nativamente);
+#    CLAUDE.md é só o stub `@~/.config/opencode/AGENTS.md` para o Claude Code.
+if [ "$do_memory" = true ]; then
+  echo "-- memória"
   for pair in "AGENTS.md:$OPENCODE_HOME/AGENTS.md" "CLAUDE.md:$CLAUDE_HOME/CLAUDE.md"; do
     src="$SCRIPT_DIR/memory/${pair%%:*}"
     dst="${pair#*:}"
-    if [ -f "$src" ]; then
-      mkdir -p "$(dirname "$dst")"
-      backup "$dst"
-      cp "$src" "$dst"
-      echo "memória escrita: $dst"
-    else
-      echo "aviso: $src não encontrado (pulando $dst)" >&2
-    fi
+    [ -f "$src" ] || { echo "  aviso: $src não encontrado (pulando $dst)" >&2; continue; }
+    install_file "$src" "$dst"
   done
 fi
 
-# 3) skills pessoais — symlink para a fonte (fonte única: este repo).
-#    O OpenCode lê ~/.claude/skills nativamente, então não há cópia para o
-#    OpenCode. Editar no repo já vale nas duas ferramentas.
-if $do_skills; then
+# 3) skills — symlink para a fonte (fonte única: a instalação).
+#    O OpenCode lê ~/.claude/skills nativamente; editar na origem já vale nos dois.
+if [ "$do_skills" = true ]; then
+  echo "-- skills"
   dst="$CLAUDE_HOME/skills"
-  mkdir -p "$dst"
   shopt -s nullglob
   for src in "${SKILLS_SRC[@]}"; do
     for d in "$src"/*/; do
       name="$(basename "$d")"
       [ -f "$d/SKILL.md" ] || continue   # ignora agrupadores (ex.: opcional/) que não são skills
-      d="${d%/}"
-      d="$(cd "$d" && pwd -P)"
+      d="${d%/}"; d="$(cd "$d" && pwd -P)"
       link="$dst/$name"
-      # compara o alvo resolvido: symlink criado com caminho relativo/`..`
-      # continua sendo o mesmo alvo
-      same=false
-      if [ -L "$link" ]; then
-        current="$(cd "$link" 2>/dev/null && pwd -P || true)"
-        [ "$current" = "$d" ] && same=true
-      fi
-      if $same; then
-        echo "skill já linkada: $name"
+      if [ -L "$link" ] && [ "$(cd "$link" 2>/dev/null && pwd -P || true)" = "$d" ]; then
+        echo "  já linkada: $name"
         continue
       fi
-      # instalação antiga por cópia: backup FORA de ~/.claude/skills, senão
-      # vira skill duplicada na descoberta de OpenCode/Claude
+      if $dry_run; then echo "  [dry-run] link $link -> $d"; continue; fi
+      mkdir -p "$dst"
+      # instalação antiga por cópia: backup FORA de ~/.claude/skills,
+      # senão vira skill duplicada na descoberta do OpenCode/Claude
       if [ -e "$link" ]; then
         backup_dir="$CLAUDE_HOME/skills.old"
-        mkdir -p "$backup_dir"
-        rm -rf "$backup_dir/$name"
+        mkdir -p "$backup_dir"; rm -rf "$backup_dir/$name"
         mv "$link" "$backup_dir/$name"
-        echo "backup: skill $name -> $backup_dir/$name"
+        echo "  backup: skill $name -> $backup_dir/$name"
       fi
-      rm -f "$link"
-      ln -s "$d" "$link"
-      echo "skill linkada: $name -> $d"
+      if $assume_yes; then
+        ln -sfn "$d" "$link"; echo "  linkada: $name -> $d"
+      else
+        read -r -p "  linkar $name -> $d? [s/N] " a
+        case "$a" in s|S|y|Y) ln -sfn "$d" "$link"; echo "  linkada: $name" ;; *) echo "  mantido $name" ;; esac
+      fi
     done
   done
-  echo
-  echo "as skills são symlinks para este repo — não precisa reinstalar a cada edição."
+  echo "  (skills são symlinks para a instalação: editar lá já vale)"
 fi
 
 # 4) comandos globais do OpenCode (o OpenCode V2 não lê ~/.claude/commands)
-if $do_opencode; then
+if [ "$do_opencode" = true ]; then
+  echo "-- comandos do OpenCode"
   src="$SCRIPT_DIR/opencode/commands"
   dst="$OPENCODE_HOME/commands"
   if [ -d "$src" ]; then
-    mkdir -p "$dst"
     shopt -s nullglob
     for f in "$src"/*.md; do
-      cp "$f" "$dst/$(basename "$f")"
-      echo "comando OpenCode instalado: $(basename "$f") -> $dst"
+      install_file "$f" "$dst/$(basename "$f")"
     done
-    echo
-    echo "lembrete: comandos de projeto (.claude/commands/) devem ser duplicados"
-    echo "em <repo>/.opencode/commands/ — ver opencode/README.md"
   else
-    echo "aviso: $src não encontrado (pulando OpenCode)" >&2
+    echo "  aviso: $src não encontrado (pulando OpenCode)" >&2
   fi
 fi
 
 echo
-if $do_settings || $do_memory; then
-  echo "pronto. Reinicie o Claude Code para carregar o settings."
+$dry_run && echo "dry-run: nada foi escrito."
+if [ "$do_settings" = true ] || [ "$do_memory" = true ]; then
+  echo "pronto. Reinicie o Claude Code para carregar o settings/memória."
 else
-  echo "pronto. Nada a reiniciar: o OpenCode recarrega comandos e config sozinho."
+  echo "pronto. O OpenCode recarrega comandos e config sozinho."
 fi
 echo "segredos (tokens de MCP, API keys) NÃO são versionados — configure-os manualmente."

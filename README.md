@@ -22,6 +22,23 @@ O script pergunta **onde salvar** a instalação (default `~/Work/<nome-do-repo>
 
 Depois de instalar, **pode apagar o repo de origem**: a cópia que importa está na sua pasta.
 
+### Dois instaladores, duas responsabilidades
+
+| Script | Onde escreve | O que faz |
+|---|---|---|
+| `init.sh` (raiz) | **só** na pasta da instalação | cria/atualiza o arquivo pessoal: copia o molde, preenche placeholders, versiona |
+| `<ctx>/claude/bootstrap.sh` | **fora** da instalação (`~/.claude`, `~/.config/opencode`) | instala na máquina: `settings.json`, `AGENTS.md`/`CLAUDE.md`, symlinks de skill, comandos do OpenCode |
+
+O `init.sh` **não** toca no seu HOME. Depois de criar a instalação, rode o bootstrap explicitamente:
+
+```bash
+<ctx>/claude/bootstrap.sh --dry-run    # mostra o que seria escrito
+<ctx>/claude/bootstrap.sh              # pergunta item e arquivo, com backup
+<ctx>/claude/bootstrap.sh --all        # tudo
+```
+
+Nada é sobrescrito em silêncio: **todo arquivo existente vira `<arquivo>.old` antes**, e cada escrita pede confirmação (sem TTY ou com `--yes`, aplica sem perguntar).
+
 ### O que a instalação contém
 
 ```

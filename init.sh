@@ -39,10 +39,10 @@ github_org=""
 linear_workspace=""
 linear_team=""
 workspace_dir="Work"
-do_skills="ask"
 do_memory="ask"
 mode="install"
 force_update=false
+yes_all=false
 
 usage() { grep '^#' "$0" | sed 's/^# \{0,1\}//' | sed '/^!/d'; }
 
@@ -56,12 +56,14 @@ while [ $# -gt 0 ]; do
     --linear-workspace) linear_workspace="${2:?}"; shift 2 ;;
     --linear-team) linear_team="${2:?}"; shift 2 ;;
     --workspace-dir) workspace_dir="${2:?}"; shift 2 ;;
-    --with-skills) do_skills=true; shift ;;
-    --no-skills) do_skills=false; shift ;;
     --with-memory) do_memory=true; shift ;;
     --no-memory) do_memory=false; shift ;;
+    --with-skills|--no-skills|--skills|--opencode)
+      echo "aviso: $1 não é mais do init.sh — use <instalação>/$ctx/claude/bootstrap.sh" >&2
+      exit 1 ;;
     --update) mode="update"; shift ;;
     --force-update) force_update=true; shift ;;
+    --yes|-y) yes_all=true; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "opção desconhecida: $1" >&2; exit 1 ;;
   esac
@@ -96,8 +98,8 @@ version() { git -C "$SRC" rev-parse --short HEAD 2>/dev/null || echo "sem-git-$(
 # ---------------------------------------------------------------------------
 # --update: reaplica só os arquivos do template que você NÃO editou
 # ---------------------------------------------------------------------------
-managed_files() {  # lista os caminhos do template (relativos à instalação)
-  [ -d "$TPL" ] && (cd "$TPL" && find . -type f -not -name "$STAMP" | sed 's|^\./||')
+managed_files() {  # caminhos do template, SEMPRE prefixados com _context/ ou common/
+  [ -d "$TPL" ] && (cd "$TPL" && find . -type f -not -name "$STAMP" | sed 's|^\./||; s|^|_context/|')
   for f in README.md UPDATE.md .gitignore init.sh; do
     [ -f "$SRC/$f" ] && echo "$f"
   done
@@ -129,7 +131,25 @@ if [ "$mode" = update ]; then
         -e "s|<WORKSPACE_DIR>|$WORKSPACE_DIR|g" "$1" > "$2"
   }
 
-  changed=0; skipped=0; added=0
+  # configs de agente (Claude/OpenCode): pedem permissão arquivo a arquivo e
+  # sempre geram backup, porque foram editados à mão e/ou vivem no HOME
+  is_config() {  # is_config <caminho-relativo-na-instalação>
+    case "$1" in
+      */claude/*|*/.claude/*|*/.opencode/*|*/.config/opencode/*) return 0 ;;
+      *) return 1 ;;
+    esac
+  }
+  approve_config() {  # approve_config <dst> — true = pode escrever
+    local f="$1"
+    echo
+    echo "  --- config: ${f#$target/} ---"
+    diff -u "$f" "$2" 2>/dev/null | sed -n '3,40p' | sed 's/^/    /'
+    $yes_all && { echo "  (--yes: aplicando sem perguntar)"; return 0; }
+    read -r -p "  aplicar? [s/N] " a
+    case "$a" in s|S|y|Y) return 0 ;; *) return 1 ;; esac
+  }
+
+  changed=0; skipped=0; added=0; denied=0
   while IFS= read -r rel; do
     src="$SRC/$rel"
     [ -f "$src" ] || continue
@@ -141,6 +161,19 @@ if [ "$mode" = update ]; then
     [ "$rel" = "_context/README.md" ] && continue   # README do molde ≠ README da instalação
 
     tmp="$(mktemp)"; render "$src" "$tmp"
+
+    # config de agente existente: mostra o diff, pede permissão e faz backup .old
+    if [ -f "$dst" ] && ! cmp -s "$dst" "$tmp" && is_config "$dst"; then
+      if ! approve_config "$dst" "$tmp"; then
+        denied=$((denied+1)); echo "  = ${dst#$target/} (mantido por decisão sua)"
+        rm -f "$tmp"; continue
+      fi
+      cp "$dst" "$dst.old"
+      echo "  backup: ${dst#$target/} -> ${dst#$target/}.old"
+      cp "$tmp" "$dst"; changed=$((changed+1)); echo "  ~ ${dst#$target/} (config confirmado)"
+      mkdir -p "$(dirname "$basedst")"; cp "$tmp" "$basedst"
+      rm -f "$tmp"; continue
+    fi
 
     if [ ! -e "$dst" ]; then
       mkdir -p "$(dirname "$dst")"; cp "$tmp" "$dst"; chmod +x "$dst" 2>/dev/null || true
@@ -162,7 +195,7 @@ if [ "$mode" = update ]; then
   echo "$new" > "$target/$STAMP"
   echo
   echo "atualizado: $old → $new"
-  echo "  novos: $added · atualizados: $changed · conflitos: $skipped"
+  echo "  novos: $added · atualizados: $changed · conflitos: $skipped · mantidos: $denied"
   [ "$skipped" -gt 0 ] && echo "  revise os *.new e apague-os depois de mesclar (ver UPDATE.md)."
   echo "  NENHUM arquivo em $CTX/ foi alterado."
   exit 0
@@ -304,21 +337,7 @@ while IFS= read -r -d '' f; do
 done < <(find "$target" -type f -print0 \
    -not -path '*/.git/*' -not -path '*/.archive-base/*' -not -name '.archive-meta')
 
-# 5) skills
-if [ "$do_skills" = ask ]; then
-  echo
-  echo "Instalar skills agora altera FORA da instalação: ~/.claude/skills (symlinks) e ~/.config/opencode/commands (cópias)."
-  ask_yes do_skills "Instalar as skills e os comandos do OpenCode agora?"
-fi
-if [ "$do_skills" = true ]; then
-  echo
-  echo "== skills =="
-  bash "$target/$ctx/claude/bootstrap.sh" --skills --opencode
-else
-  echo "- skills não instaladas (rode $ctx/claude/bootstrap.sh --skills --opencode depois)"
-fi
-
-# 6) gerenciador de memória
+# 5) gerenciador de memória (só decide o que fica em <ctx>/backup)
 if [ "$do_memory" = ask ]; then
   echo
   echo "Gerenciador de memória: 1) Engram  2) Nenhum"
@@ -333,7 +352,7 @@ else
   echo "- sem gerenciador de memória: backup removido do contexto (os scripts ficam prontos, mas não são chamados)"
 fi
 
-# 7) git próprio da instalação (histórico seu, independente deste template)
+# 6) git próprio da instalação (histórico seu, independente deste template)
 if git -C "$target" rev-parse --git-dir >/dev/null 2>&1; then
   echo "- $target já é um repo git, não inicializei outro"
 else
@@ -348,6 +367,9 @@ pronto. Sua instalação: $target
    deixam de valer — rode ./init.sh --update --dir <novo-path> se mover)
 
 próximos passos:
+  0. instale na máquina (skills, comandos, settings, memória):
+       $ctx/claude/bootstrap.sh --all --dry-run   # veja o que seria escrito
+       $ctx/claude/bootstrap.sh --all             # escreve, com backup .old
   1. preencha $ctx/docs/README.md, $ctx/tools/projects.json e $ctx/claude/memory/AGENTS.md
   2. (opcional) preencha $ctx/journal/GUIA.md — ou apague a pasta se não usar journal
   3. confira os placeholders restantes: <PROJECT>, <REPO>, <SDD_REPO>

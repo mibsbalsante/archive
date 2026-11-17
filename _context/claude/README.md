@@ -24,18 +24,25 @@ Skills (criadas, não as de projeto): gerais em [`../../common/skills/`](../../c
 ## Bootstrap em máquina nova
 
 ```bash
-git clone <url-do-seu-repo> <ARCHIVE_DIR>
 cd <ARCHIVE_DIR>/<CTX>/claude
 
-./bootstrap.sh            # só ~/.claude/settings.json (faz backup .old se existir)
-./bootstrap.sh --settings # idem, explícito (para combinar com outras flags)
-./bootstrap.sh --memory   # CLAUDE.md global (backup .old)
-./bootstrap.sh --skills   # skills (common + opcionais + contexto)
-./bootstrap.sh --opencode # comandos globais em ~/.config/opencode/commands/
-./bootstrap.sh --all      # tudo
+./bootstrap.sh --dry-run   # mostra o que seria escrito, sem tocar em nada
+./bootstrap.sh             # pergunta item a item; depois arquivo a arquivo
+./bootstrap.sh --settings  # só ~/.claude/settings.json
+./bootstrap.sh --memory    # AGENTS.md global + CLAUDE.md
+./bootstrap.sh --skills    # skills (common + opcionais + contexto)
+./bootstrap.sh --opencode  # comandos globais em ~/.config/opencode/commands/
+./bootstrap.sh --all       # tudo
+./bootstrap.sh --all --yes # tudo, sem perguntar
 ```
 
-O settings só é escrito quando pedido — sem flag, ou com `--settings`/`--all`. `--memory`, `--skills` e `--opencode` **não** tocam `~/.claude/settings.json`. O script **sempre** faz backup `.old` do settings/memória existentes antes de sobrescrever. `settings.base.json` **não contém segredos** — tokens de MCP e API keys devem ser configurados manualmente na máquina nova.
+Este é o **segundo instalador**: o `init.sh` da raiz cria o archive pessoal e nunca sai da pasta; o bootstrap é quem escreve no HOME (`~/.claude`, `~/.config/opencode`).
+
+- **Nada é sobrescrito em silêncio:** todo arquivo existente é copiado para `<arquivo>.old` antes de a escrita acontecer.
+- **Permissão explícita:** cada arquivo pede confirmação. Sem TTY (script/CI) o arquivo é mantido; use `--yes` para aplicar.
+- Arquivo novo (não existe no destino) é criado sem perguntar — não há nada a preservar.
+- Skills: se já for symlink para a mesma fonte, nada acontece; se for uma cópia antiga, vai para `~/.claude/skills.old/` e o symlink é criado.
+- `settings.base.json` **não contém segredos** — tokens de MCP e API keys devem ser configurados manualmente na máquina nova.
 
 ## MCPs remotos (OAuth, sem segredo no repo)
 

@@ -55,6 +55,10 @@ Como ele sabe que você editou? Cada instalação guarda dois metadados, criados
 | `.archive-meta` | os valores da instalação (`CTX`, `GITHUB_ORG`, `LINEAR_TEAM`…) — usados para reaplicar as substituições nos arquivos do template |
 | `.archive-base/<arquivo>` | cópia de cada arquivo do template **como ficou na instalação** — é a base da comparação |
 
+### Configs de agente pedem permissão arquivo a arquivo
+
+Os arquivos de `claude/` (settings, memória, comandos, config do OpenCode) são tratados à parte: qualquer mudança neles **mostra o diff, pergunta individualmente** e faz backup `<arquivo>.old` antes de escrever. Com `--yes`, aplica sem perguntar — mas **continua gerando o `.old`**. Responder "n" mantém o seu arquivo e não gera backup.
+
 O `--update` renderiza o arquivo novo com os seus valores e compara com o disco: igual à base = só o template mudou (atualiza); diferente da base = você editou (vira `.new`).
 
 **Nada dentro de `<ctx>/` é tocado** — `docs/`, `journal/`, `backup/`, `tools/projects.json`, `claude/memory/AGENTS.md` e `skills/` são seus. O `--update` só percorre os arquivos do template: `common/`, `claude/`, `skills/README.md`, `docs/README.md` do molde, `init.sh`, `README.md`, `UPDATE.md`, `.gitignore` e os `.md` de exemplo.
