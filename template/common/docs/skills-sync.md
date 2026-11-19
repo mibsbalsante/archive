@@ -22,6 +22,7 @@ Toda skill deste arquivo carrega o prefixo **`archive-`** no `name` (e na pasta)
 | `archive-project-init` | `/archive-project-init` |
 | `archive-project-next-task` | `/archive-project-next-task` |
 | `archive-implement-task` | `/archive-implement-task` |
+| `archive-ai-usage-report` | `/archive-ai-usage-report` (opcional: tem `argument-hint`, roda pelo nome) |
 
 O gatilho antigo continua na `description` (`Triggers: journalling, ...`), então "registro do dia" e "trashcan" ainda carregam a skill certa. **Nomes de arquivo de dados não levam prefixo** (`journal/.trashcan.md` é o dump, não a skill).
 
@@ -33,12 +34,12 @@ O gatilho antigo continua na `description` (`Triggers: journalling, ...`), entã
 | Instalação | `~/.claude/skills/<nome>` → symlink para a fonte | único ponto instalado |
 | Consumidor | OpenCode (global) | lê `~/.claude/skills` e `~/.config/opencode/skills` |
 | Consumidor | Claude Code (global) | lê `~/.claude/skills` |
-| Empacotamento | `common/tools/pack-skill.sh <nome>` | gera `<nome>.skill` para o Cowork (não lê o destino, lê a fonte) |
+| Empacotamento | `common/tools/pack-skill.sh <nome>` | gera `<nome>.skill` para o Cowork ou outra máquina (`--all`, `--install`; não lê o destino, lê a fonte) |
 
 Onde cada skill mora:
 
 - `common/skills/` — só `git`/`gh`, sem plugin, Linear ou repo de empresa.
-- `common/skills/opcional/` — dependem de plugin, Linear/GitHub CLI e dos scripts de `<ctx>/tools/`; podem ser removidas sem quebrar as demais.
+- `common/skills/opcional/` — dependem de plugin, Linear/GitHub CLI e dos scripts de `<ctx>/tools/`; podem ser removidas sem quebrar as demais. A `archive-ai-usage-report` também fica aqui: depende de Python e dos registros locais de cada harness.
 - `<ctx>/skills/` — dependem de ferramentas específicas de um contexto.
 
 Skills de **projeto** (`.claude/skills/` dentro de um repo de trabalho) não passam por aqui: pertencem ao work repo e já são lidas pelos dois agentes. Esta nota vale para as skills **pessoais**.

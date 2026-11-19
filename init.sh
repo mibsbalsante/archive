@@ -181,7 +181,9 @@ managed_files() {  # caminhos relativos à instalação (o que o --update gerenc
     -not -path './_context/*' -not -path './common/*' -not -path './personal/*' \
     -not -name '.gitkeep' \
     | sed 's|^\./||')
+  # o molde do contexto exclui dados do usuário: skills, docs, journal, backup
   [ -d "$TPL" ] && (cd "$TPL" && find . -type f -not -name "$STAMP" -not -path './backup/engram/*' \
+    -not -path './skills/*' -not -path './docs/*' -not -path './journal/*' \
     | sed 's|^\./||; s|^|_context/|')
   (cd "$PKG/common" && find . -type f | sed 's|^\./||; s|^|common/|')
 }
@@ -386,6 +388,8 @@ Cada pasta de primeiro nível com `backup/engram/` é um contexto (pasta `_*` é
 | gerar o doc de tasks de um projeto | skill `/archive-project-init` |
 | próxima task | skill `/archive-project-next-task` |
 | registro do dia | skill `/archive-journalling` |
+| uso de IA (dia/modelo/skill/MCP) | skill `archive-ai-usage-report` |
+| empacotar uma skill | `common/tools/pack-skill.sh --all` |
 
 ## Atualizar o template
 
@@ -456,7 +460,7 @@ while IFS= read -r -d '' f; do
     rm -f "$f.bak"
   done
   count=$((count + 1))
-done < <(find "$target" -type f \( -name '*.md' -o -name '*.sh' -o -name '*.mjs' -o -name '*.json' -o -name '*.jsonc' \) -print0)
+done < <(find "$target" -type f \( -name '*.md' -o -name '*.sh' -o -name '*.mjs' -o -name '*.py' -o -name '*.json' -o -name '*.jsonc' \) -print0)
 echo "$count arquivo(s) preenchido(s)"
 
 # metadados: o --update usa isto para reconstruir os valores desta instalação

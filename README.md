@@ -105,7 +105,7 @@ Algoritmo, metadados e resolução de conflitos: [UPDATE.md](UPDATE.md).
 
 ## Skills
 
-Todas prefixadas com `archive-` para não colidir com as suas: `archive-branch-fix`, `archive-branch-fix-clean`, `archive-comment-check`, `archive-implement-task`, `archive-journalling`, `archive-project-init`, `archive-project-next-task`, `archive-trashcan`. O mesmo prefixo nos comandos `/`.
+Todas prefixadas com `archive-` para não colidir com as suas: `archive-branch-fix`, `archive-branch-fix-clean`, `archive-comment-check`, `archive-implement-task`, `archive-journalling`, `archive-project-init`, `archive-project-next-task`, `archive-trashcan`, `archive-ai-usage-report`. O mesmo prefixo nos comandos `/` onde existe comando.
 
 ## Contribuir com o template
 

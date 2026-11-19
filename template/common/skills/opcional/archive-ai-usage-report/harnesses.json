@@ -1,0 +1,23 @@
+{
+  "_comment": [
+    "Harnesses adicionais para ai_usage.py. Cada entrada é um adapter declarativo.",
+    "type: 'sqlite' | 'jsonl' | 'none' (none = presente na máquina, sem registro de uso).",
+    "Para sqlite: informar table e os nomes das colunas (ts obrigatório, ISO ou epoch).",
+    "Para jsonl: informar ts/tool/model/session conforme as chaves do arquivo.",
+    "Tudo que ficar como 'none' aparece em 'Não medido' na saída — nunca é ignorado em silêncio."
+  ],
+  "harnesses": [
+    {
+      "name": "Copilot",
+      "type": "none",
+      "path": "~/.copilot",
+      "note": "instalado; os registros em session-state/logs não têm schema de uso documentado. Para medir, mapear um arquivo com ts/tool/model e trocar o type."
+    },
+    {
+      "name": "Claude Desktop",
+      "type": "none",
+      "path": "~/Library/Application Support/Claude",
+      "note": "instalado; nenhum registro de uso legível encontrado."
+    }
+  ]
+}

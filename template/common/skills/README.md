@@ -25,5 +25,6 @@ Skills que dependem de Linear, Slack, `gh` e dos scripts de `<ctx>/tools/`. Elas
 | [archive-project-next-task](opcional/archive-project-next-task/SKILL.md) | `<ctx>/tools` + Linear + `gh` | atualiza status e lista as próximas tasks |
 | [archive-journalling](opcional/archive-journalling/SKILL.md) | `<ctx>/journal` + Linear, Slack, GitHub | registro diário que alimenta a AVD |
 | [archive-trashcan](opcional/archive-trashcan/SKILL.md) | `<ctx>/journal` | anota texto solto no dump diário que a `archive-journalling` consome |
+| [archive-ai-usage-report](opcional/archive-ai-usage-report/SKILL.md) | registros locais dos harnesses (Claude Code, OpenCode, Cursor…) + Python 3.9 | mede uso de agentes de IA por dia/modelo/skill/plugin/MCP/memória/harness (sem custo) |
 
 > Atualize a tabela ao adicionar uma skill.

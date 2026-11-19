@@ -59,9 +59,11 @@ Arquivo já dentro do repo → commit in place; externo → copiado para `<ctx>/
 ## `pack-skill.sh`
 
 ```bash
-common/tools/pack-skill.sh <nome|caminho> [--out <dir>]    # default --out: ~/Downloads
+common/tools/pack-skill.sh <nome|caminho> [--out <dir>]        # default --out: ~/Downloads
+common/tools/pack-skill.sh --all [--out <dir>]                 # todas as skills das três fontes
+common/tools/pack-skill.sh --install <arquivo.skill>           # instala em ~/.claude/skills e valida
 ```
 
-Procura a skill em `common/skills/`, `common/skills/opcional/` e `<ctx>/skills/`; gera `<nome>.skill` (zip com a pasta da skill na raiz). Ver [`<ctx>/claude/skills/README.md`](../../_context/claude/skills/README.md).
+Procura a skill em `common/skills/`, `common/skills/opcional/` e `<ctx>/skills/`; gera `<nome>.skill` (zip com a pasta da skill na raiz, sem `__pycache__`/`*.pyc`/`.DS_Store`). Recusa skill sem frontmatter `name` + `description`. Ver [`<ctx>/claude/skills/README.md`](../../_context/claude/skills/README.md).
 
 > Atualize a tabela e a seção ao adicionar um script.
